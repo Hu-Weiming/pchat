@@ -4,6 +4,8 @@
 
 正式开发从 [`DEVELOPMENT-HANDOFF.md`](./DEVELOPMENT-HANDOFF.md) 开始；该文档说明当前实现、P1 任务、验收条件和开发环境约束。
 
+P1 当前实施进度、验证证据与提交记录统一见 [`P1-PROGRESS.md`](./P1-PROGRESS.md)，工作流细化与状态表见 [`P1-WORKFLOW.md`](./P1-WORKFLOW.md)。
+
 ## 产品与架构
 
 - [`PCHAT-CURRENT-PRODUCT-CONSENSUS.md`](./PCHAT-CURRENT-PRODUCT-CONSENSUS.md)：已经确认的产品目标、范围和行为。
