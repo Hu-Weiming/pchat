@@ -1,8 +1,8 @@
 # Pchat 当前 Harness 架构与实施计划
 
-更新日期：2026-09-08。状态：**P0 技术验证已通过，下一步为 P1 Harness 编码**。本文件优化并取代旧版架构提案；P0 全程未调用付费接口，实测结果见 [P0-VALIDATION-REPORT.md](D:/Pchat/docs/P0-VALIDATION-REPORT.md)。
+更新日期：2026-09-08。状态：**P0 技术验证已通过，下一步为 P1 Harness 编码**。本文件优化并取代旧版架构提案；P0 全程未调用付费接口，实测结果见 [P0-VALIDATION-REPORT.md](./P0-VALIDATION-REPORT.md)。
 
-强制运行规则见 [RUNTIME-INVARIANTS.md](D:/Pchat/docs/RUNTIME-INVARIANTS.md)，安全范围与验证要求见 [PCHAT-SECURITY-THREAT-MODEL.md](D:/Pchat/docs/PCHAT-SECURITY-THREAT-MODEL.md)。
+强制运行规则见 [RUNTIME-INVARIANTS.md](./RUNTIME-INVARIANTS.md)，安全范围与验证要求见 [PCHAT-SECURITY-THREAT-MODEL.md](./PCHAT-SECURITY-THREAT-MODEL.md)。
 
 ## 1. 本次优化结论
 
@@ -12,7 +12,7 @@ Pchat 不再被定义为“带有 Agent 模块的 Tauri 应用”，而被定义
 
 系统中心从 Tauri/React 转移到 **PchatHarness**。Tauri 是 Windows Host，React 是 UI；它们都可以被替换，而不改写哲学运行时。系统浏览器和网络版不进入 Windows MVP。
 
-Atelier 原型 [pchat-atelier-prototype.html](D:/Pchat/prototypes/pchat-atelier-prototype.html) 仍是视觉与主交互基准，不是运行时实现基准。原型里的固定哲学内容、伪运行状态、故障开关和日记预览不能直接迁入生产数据。
+Atelier 原型 [pchat-atelier-prototype.html](../prototypes/pchat-atelier-prototype.html) 仍是视觉与主交互基准，不是运行时实现基准。原型里的固定哲学内容、伪运行状态、故障开关和日记预览不能直接迁入生产数据。
 
 ### 相比 v0.2 的主要变化
 
@@ -406,7 +406,7 @@ packages 数量由真实 seams 决定。实现中若某个 adapter 只有少量�
 
 ### P0：六项架构 spike
 
-状态：**已完成**。Windows MVP 采用“捆绑 Node Runtime + 私有 stdin/stdout + `node:sqlite`”；SEA 暂不采用，`better-sqlite3` 保留为可替换后备。完整证据和限制见 [P0 技术验证报告](D:/Pchat/docs/P0-VALIDATION-REPORT.md)。
+状态：**已完成**。Windows MVP 采用“捆绑 Node Runtime + 私有 stdin/stdout + `node:sqlite`”；SEA 暂不采用，`better-sqlite3` 保留为可替换后备。完整证据和限制见 [P0 技术验证报告](./P0-VALIDATION-REPORT.md)。
 
 1. Tauri Host 启停固定 sidecar、托盘隐藏和显式退出。
 2. 实测 bundled Node + better-sqlite3、bundled Node + node:sqlite、SEA + node:sqlite 三种 Runtime/SQLite 组合；根据安装、启动、签名、杀毒软件、原生依赖、升级、迁移、备份和崩溃表现选择，不预设 SEA 胜出。

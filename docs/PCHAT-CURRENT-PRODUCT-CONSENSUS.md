@@ -7,9 +7,9 @@
 - 用户要求结束无明确终点的逐项追问，进入系统设计交付。当前无必须补问用户才能编制 Windows MVP 系统设计的阻塞问题。
 - 助手负责选择可调整的工程默认值，并明确区别于用户明确要求；不再让用户逐项决定所有实现细节。
 - 遇到进程管理、权限、恢复等棘手设计时，优先查阅 Codex、Claude Code 等成熟产品的官方公开资料和可验证实现；只借鉴适用于 Pchat 的原则，不猜测未公开内部设计，也不机械照搬。
-- 当前技术实施基线为 [Pchat 当前 Harness 架构与实施计划](D:/Pchat/docs/PCHAT-CURRENT-HARNESS-ARCHITECTURE-AND-IMPLEMENTATION-PLAN.md)，强制运行规则见 [Runtime Invariants](D:/Pchat/docs/RUNTIME-INVARIANTS.md)，安全范围见 [Security Threat Model](D:/Pchat/docs/PCHAT-SECURITY-THREAT-MODEL.md)。架构审查和 [P0 技术验证](D:/Pchat/docs/P0-VALIDATION-REPORT.md) 已完成；旧版系统设计已移入演示目录归档。
+- 当前技术实施基线为 [Pchat 当前 Harness 架构与实施计划](./PCHAT-CURRENT-HARNESS-ARCHITECTURE-AND-IMPLEMENTATION-PLAN.md)，强制运行规则见 [Runtime Invariants](./RUNTIME-INVARIANTS.md)，安全范围见 [Security Threat Model](./PCHAT-SECURITY-THREAT-MODEL.md)。架构审查和 [P0 技术验证](./P0-VALIDATION-REPORT.md) 已完成；旧版系统设计不再保留在当前仓库。
 - 项目已进入编码阶段，下一步为 P1 Contracts 与 Headless Harness。知识库资料、实际人物内容、费用配置和朋友试用授权在相应接入或发布阶段解决，不阻塞核心开发。
-- 负责人具有 Java 软件工程背景，并将技术实现规划交由助手负责。当前工程组织、阶段任务、依赖关系与验收见 [Pchat 当前 Harness 架构与实施计划](D:/Pchat/docs/PCHAT-CURRENT-HARNESS-ARCHITECTURE-AND-IMPLEMENTATION-PLAN.md)。P0 未调用任何付费接口。
+- 负责人具有 Java 软件工程背景，并将技术实现规划交由助手负责。当前工程组织、阶段任务、依赖关系与验收见 [Pchat 当前 Harness 架构与实施计划](./PCHAT-CURRENT-HARNESS-ARCHITECTURE-AND-IMPLEMENTATION-PLAN.md)。P0 未调用任何付费接口。
 
 ## 产品定位
 

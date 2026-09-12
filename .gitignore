@@ -11,6 +11,7 @@ coverage/
 *.db-shm
 *.db-wal
 apps/desktop/src-tauri/binaries/
+apps/desktop/src-tauri/gen/
 artifacts/
 .p0-temp/
 .idea/

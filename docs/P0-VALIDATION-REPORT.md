@@ -48,11 +48,11 @@ React WebView
 - 窗口关闭后 Host 与 Runtime 均继续运行；模拟 Host 崩溃后，两者均退出，无孤儿进程。
 - Windows Defender 对安装包扫描结果：未发现威胁。
 
-安装包：`D:\Pchat\apps\desktop\src-tauri\target\release\bundle\nsis\Pchat P0_0.0.0_x64-setup.exe`
+安装包位于本地构建目录：`apps/desktop/src-tauri/target/release/bundle/nsis/`（构建产物不提交仓库）。
 
 SHA-256：`7A01FE2505D752D8247193880712FE47545A484120FB4DF69A294F9C6C13CDF4`
 
-测试版已安装到：`C:\Users\胡炜铭\AppData\Local\Pchat P0`
+测试版安装位置：`%LOCALAPPDATA%\Pchat P0`
 
 ## 4. 后续边界
 
