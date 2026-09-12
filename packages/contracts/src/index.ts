@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export * from "./harness";
+
 export const PCHAT_PROTOCOL_VERSION = 1 as const;
 
 export const RuntimeMethodSchema = z.enum([

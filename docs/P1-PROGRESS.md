@@ -1,6 +1,6 @@
 # P1 当前进度
 
-更新日期：2026-09-12。当前阶段：设计细化与测试环境准备。
+更新日期：2026-09-12。当前阶段：基础契约完成，开始单人物垂直切片。
 
 本文件是本次开发唯一的进度入口，每个开发步骤和提交前更新。产品规则仍以产品共识和运行不变量为准；实施细节见 [P1 工作流](./P1-WORKFLOW.md)。
 
@@ -16,8 +16,8 @@
 | 步骤 | 状态 | 验证证据 |
 | --- | --- | --- |
 | 接管、权威文档、Git 与基线类型检查 | 已完成 | 初始 main 无业务修改，仅上一轮两份调研草稿；pnpm check 三个包通过 |
-| 工作流细化、提交规范、测试环境 | 进行中 | 工作流已细化；提交规范采用 Conventional Commits，见调研；测试工具配置进行中 |
-| 正式契约与输入校验 | 待实施 | 首先增加失败契约测试，再逐个实现 |
+| 工作流细化、提交规范、测试环境 | 已完成 | Vitest 5 / Vite 8；输出路径显式要求 PCHAT_DEV_ROOT；Conventional Commits |
+| 正式契约与输入校验 | 进行中 | 基础命令、查询、回执、事件和状态枚举 4 项测试通过；执行投影随下一垂直切片补齐 |
 | 注入 ports、内存事务和单人物完整轮次 | 待实施 | 创建、提交、检索、生成、投影公共接口测试 |
 | FIFO、上下文冻结、幂等 | 待实施 | A/B/C、并发重复 commandId、设置与输入隔离 |
 | 停止、恢复、未知结果和明确重新生成 | 待实施 | 迟到结果、崩溃替身、旧运行者隔离、新 attempt 关联 |
@@ -29,7 +29,9 @@
 采用已确认的公共测试面：contracts schema、PchatHarness 的 dispatch/query/events、Store 与 Model/RAG ports。不通过私有方法断言业务状态。每次推进一个失败场景，再实现通过；提交仅包含通过验证的完整切片。
 
 - 基线：`pnpm check` 通过（contracts、runtime-windows、desktop）。
-- 尚未编写领域实现或宣称任何 P1 场景通过。
+- 契约四轮 red → green：依次观察缺少 schema、SubmitQuestion discriminator、控制命令 discriminator、查询 schema 导致的失败，再实现；当前 4 项契约测试通过。
+- `pnpm check` 和 `pnpm check:tests` 通过。尚未宣称 Harness 业务场景通过。
+- 环境负例：未设置 PCHAT_DEV_ROOT 时测试明确失败；Vite 临时配置、cache 和 coverage 未写入仓库，Vitest cache 位于开发根目录。
 
 ## 本地环境
 
@@ -39,7 +41,10 @@
 
 ## 提交记录
 
-本次起点：`54b383c`。第 1 步提交：`docs(p1): define portable workflow and progress`，包含本工作流、进度入口与三份一手调研。提交前基线类型检查通过；后续提交在此追加记录。
+本次起点：`54b383c`。
+
+1. `67ddc9c docs(p1): define portable workflow and progress`：设计、进度与三份一手调研。
+2. `feat(contracts): add validated portable harness messages`：基础契约与 Vitest 工具；4 项契约测试、业务及测试类型检查通过。
 
 ## 待后续阶段验证的风险
 
