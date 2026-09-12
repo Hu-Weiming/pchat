@@ -87,6 +87,29 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
+  packages/harness:
+    dependencies:
+      '@pchat/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/testing:
+    dependencies:
+      '@pchat/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@pchat/harness':
+        specifier: workspace:*
+        version: link:../harness
+    devDependencies:
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.2':

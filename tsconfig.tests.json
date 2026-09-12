@@ -7,5 +7,5 @@
     "checkJs": false,
     "noEmit": true
   },
-  "include": ["packages/**/*.test.ts", "scripts/**/*.test.ts", "vitest.config.ts"]
+  "include": ["packages/**/*.test.ts", "scripts/**/*.test.ts", "scripts/portable-harness-fixture.ts", "vitest.config.ts"]
 }
