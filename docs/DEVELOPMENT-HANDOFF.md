@@ -1,8 +1,11 @@
 # Pchat 正式开发交接
 
-更新日期：2026-09-12  
-仓库：<https://github.com/Hu-Weiming/pchat>  
-当前分支：`main`  
+更新日期：2026-09-12
+
+仓库：<https://github.com/Hu-Weiming/pchat>
+
+当前分支：`main`
+
 当前阶段：P0 已完成；下一步实施 P1 Contracts 与 Headless Harness。
 
 ## 1. 接管时先确认
