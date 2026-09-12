@@ -1,42 +1,9 @@
-import type { CommandReceipt, ConversationSettings, HarnessEvent, QuestionStatus, TurnStatus, RoleStatus, AttemptStatus, KnowledgeMode } from "@pchat/contracts";
+import type {
+  Answer, CommandReceipt, ContextSnapshot, ConversationSettings, Evidence, ExternalAttempt,
+  HarnessEvent, KnowledgeMode, QuestionStatus, RoleRunProjection, ThoughtStagePackage, TurnProjection,
+} from "@pchat/contracts";
 
-export interface ThoughtStagePackage {
-  id: string;
-  revision: string;
-  label: string;
-  status: "CONFIRMED" | "DRAFT";
-  corpusId: string;
-  corpusRevision: string;
-  retrievalConfigRevision: string;
-  promptPolicyRevision: string;
-}
-
-export interface Evidence {
-  id: string;
-  corpusId: string;
-  corpusRevision: string;
-  sourceId: string;
-  sourceRevision: string;
-  text: string;
-  contentHash: string;
-  locator: string | null;
-  workTitle: string | null;
-  edition: string | null;
-  translator: string | null;
-  kind: "PRIMARY" | "RESEARCH";
-}
-
-export interface Answer {
-  text: string;
-  kind: "PARAPHRASE" | "QUOTE" | "INFERENCE" | "FICTION" | "INSUFFICIENT_EVIDENCE";
-  evidenceIds: string[];
-}
-export interface ContextSnapshot {
-  question: { id: string; text: string };
-  settings: ConversationSettings;
-  participant: ThoughtStagePackage;
-  history: { turnId: string; question: string; answer: string }[];
-}
+export type { Answer, ContextSnapshot, Evidence, ExternalAttempt, ThoughtStagePackage };
 export interface Cancellation {
   readonly cancelled: boolean;
   subscribe(listener: () => void): () => void;
@@ -64,32 +31,8 @@ export interface ModelPort { generate(request: GenerationRequest, cancellation: 
 export interface Clock { now(): number }
 export interface IdGenerator { next(): string }
 
-export interface ExternalAttempt {
-  id: string;
-  kind: "RAG" | "MODEL";
-  status: AttemptStatus;
-  previousAttemptId: string | null;
-  reservedCostUnits: number;
-  draft: string;
-}
-export interface RoleRunRecord {
-  id: string;
-  status: RoleStatus;
-  textSoFar: string;
-  revision: number;
-  evidence: Evidence[];
-  answer: Answer | null;
-  attempts: ExternalAttempt[];
-  errorCode: string | null;
-}
-export interface TurnRecord {
-  id: string;
-  conversationId: string;
-  questionId: string;
-  status: TurnStatus;
-  context: ContextSnapshot;
-  roleRuns: RoleRunRecord[];
-}
+export type RoleRunRecord = RoleRunProjection;
+export type TurnRecord = TurnProjection;
 export interface QuestionRecord {
   id: string;
   text: string;

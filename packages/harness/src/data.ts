@@ -11,6 +11,7 @@ const messages: Record<DomainError["code"], string> = {
   QUEUE_BLOCKED: "Resolve or stop the current turn before resuming the queue.",
   RUNTIME_REPLACED: "This runtime is no longer the store owner.",
   BUDGET_EXCEEDED: "The configured call budget is exhausted.",
+  CAPACITY_EXCEEDED: "The configured execution capacity is currently occupied.",
   PROVIDER_FAILED: "The provider did not complete the request.",
   INVALID_PROVIDER_RESULT: "The provider response failed validation.",
 };

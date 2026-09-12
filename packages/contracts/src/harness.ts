@@ -48,7 +48,7 @@ const error = <T extends string>(code: T) => z.strictObject({ code: z.literal(co
 export const DomainErrorSchema = z.discriminatedUnion("code", [
   error("INVALID_INPUT"), error("NOT_FOUND"), error("COMMAND_CONFLICT"), error("INVALID_TRANSITION"),
   error("QUEUE_BLOCKED"), error("RUNTIME_REPLACED"), error("BUDGET_EXCEEDED"),
-  error("PROVIDER_FAILED"), error("INVALID_PROVIDER_RESULT"),
+  error("PROVIDER_FAILED"), error("INVALID_PROVIDER_RESULT"), error("CAPACITY_EXCEEDED"),
 ]);
 export type DomainError = z.infer<typeof DomainErrorSchema>;
 export const CommandReceiptSchema = z.discriminatedUnion("ok", [
@@ -97,6 +97,12 @@ export const TurnProjectionSchema = z.strictObject({
   id: Id, conversationId: Id, questionId: Id, status: TurnStatusSchema,
   context: ContextSnapshotSchema, roleRuns: z.array(RoleRunProjectionSchema),
 });
+export type ThoughtStagePackage = z.infer<typeof ThoughtStagePackageSchema>;
+export type Evidence = z.infer<typeof EvidenceSchema>;
+export type Answer = z.infer<typeof AnswerSchema>;
+export type ContextSnapshot = z.infer<typeof ContextSnapshotSchema>;
+export type ExternalAttempt = z.infer<typeof ExternalAttemptSchema>;
+export type RoleRunProjection = z.infer<typeof RoleRunProjectionSchema>;
 export type TurnProjection = z.infer<typeof TurnProjectionSchema>;
 
 export const RetrievalResultSchema = z.discriminatedUnion("ok", [

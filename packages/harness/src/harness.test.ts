@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createHarness, type PchatHarness } from "./index";
+import { createHarness } from "./index";
 import { createTestDependencies, testSettings } from "../../testing/src/index";
+import { createConversation, waitForTurn } from "../test-support";
 
 describe("PchatHarness", () => {
   it("creates a conversation retrievable through the same public interface", async () => {
@@ -24,22 +25,3 @@ describe("PchatHarness", () => {
     expect(turn.roleRuns[0]?.attempts.map((attempt) => [attempt.kind, attempt.status])).toEqual([["RAG", "SUCCEEDED"], ["MODEL", "SUCCEEDED"]]);
   });
 });
-
-export async function createConversation(harness: PchatHarness, commandId = "create") {
-  const receipt = await harness.dispatch({ type: "CreateConversation", commandId, title: "Freedom", settings: testSettings });
-  if (!receipt.ok || !receipt.conversationId) throw new Error(JSON.stringify(receipt));
-  return receipt.conversationId;
-}
-
-export async function waitForTurn(harness: PchatHarness, conversationId: string, status: string, index = 0) {
-  for (let tries = 0; tries < 500; tries++) {
-    const conversation = await harness.query({ type: "GetConversation", conversationId });
-    if (!conversation.ok) throw new Error(JSON.stringify(conversation));
-    const turnId = conversation.data.turnIds[index];
-    if (turnId) {
-      const turn = await harness.query({ type: "GetTurn", turnId });
-      if (turn.ok && turn.data.status === status) return turn.data;
-    }
-  }
-  throw new Error(`Turn did not reach ${status}`);
-}

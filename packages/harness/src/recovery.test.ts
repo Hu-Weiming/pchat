@@ -1,0 +1,100 @@
+import { describe, expect, it } from "vitest";
+import { createHarness } from "./index";
+import { createTestDependencies } from "../../testing/src/index";
+import { createConversation, until, waitForTurn } from "../test-support";
+
+describe("recovery of uncertain external work", () => {
+  it("does not retry after restart and regenerates only with an explicit new attempt", async () => {
+    const deps = createTestDependencies({ draftCheckpointChars: 1 });
+    deps.model.holdNext();
+    const old = await createHarness(deps);
+    const conversationId = await createConversation(old);
+    const command = { type: "SubmitQuestion" as const, commandId: "A", conversationId, text: "A" };
+    const originalReceipt = await old.dispatch(command);
+    await until(() => deps.model.calls.length === 1);
+    deps.model.calls[0]!.delta("Saved draft");
+    const active = await waitForTurn(old, conversationId, (turn) => turn.roleRuns[0]?.textSoFar === "Saved draft");
+    await old.dispatch({ type: "SubmitQuestion", commandId: "B", conversationId, text: "B" });
+    const recovered = await createHarness(deps);
+    expect(await recovered.query({ type: "GetTurn", turnId: active.id })).toMatchObject({ ok: true, data: { status: "WAITING_USER", roleRuns: [{ status: "WAITING_USER", textSoFar: "Saved draft" }] } });
+    expect(deps.model.calls).toHaveLength(1);
+    expect(await recovered.dispatch(command)).toEqual(originalReceipt);
+    expect(await old.dispatch({ type: "SubmitQuestion", commandId: "old", conversationId, text: "old" })).toMatchObject({ ok: false, error: { code: "RUNTIME_REPLACED" } });
+    expect(await recovered.dispatch({ type: "ResumeQueue", commandId: "resume-early", conversationId })).toMatchObject({ ok: false, error: { code: "QUEUE_BLOCKED" } });
+    const roleId = active.roleRuns[0]!.id;
+    const regenerate = { type: "RegenerateRole" as const, commandId: "regenerate", roleRunId: roleId };
+    expect(await recovered.dispatch(regenerate)).toMatchObject({ ok: true });
+    const completed = await waitForTurn(recovered, conversationId, "COMPLETED");
+    expect(completed.id).toBe(active.id);
+    expect(completed.roleRuns[0]?.id).toBe(roleId);
+    const attempts = completed.roleRuns[0]!.attempts;
+    expect(attempts.map((attempt) => attempt.status)).toEqual(["SUCCEEDED", "OUTCOME_UNKNOWN", "SUCCEEDED"]);
+    expect(attempts[2]?.previousAttemptId).toBe(attempts[1]?.id);
+    expect(attempts[1]?.draft).toBe("Saved draft");
+    expect(deps.rag.calls).toHaveLength(1);
+    await recovered.dispatch(regenerate);
+    expect(deps.model.calls).toHaveLength(2);
+    deps.model.calls[0]!.complete();
+    await recovered.dispatch({ type: "ResumeQueue", commandId: "resume", conversationId });
+    await waitForTurn(recovered, conversationId, "COMPLETED", 1);
+    expect(await recovered.query({ type: "GetTurn", turnId: active.id })).toMatchObject({ ok: true, data: completed });
+  });
+
+  it("suspends the host explicitly and flushes its last draft without auto-retrying on resume", async () => {
+    const deps = createTestDependencies({ draftCheckpointChars: 1_000 });
+    deps.model.holdNext();
+    const harness = await createHarness(deps);
+    const conversationId = await createConversation(harness);
+    await harness.dispatch({ type: "SubmitQuestion", commandId: "A", conversationId, text: "A" });
+    await until(() => deps.model.calls.length === 1);
+    deps.model.calls[0]!.delta("Small draft");
+    for (let index = 0; index < 10; index++) await harness.query({ type: "GetConversation", conversationId });
+    expect(await harness.dispatch({ type: "SuspendRuntime", commandId: "suspend" })).toMatchObject({ ok: true });
+    const waiting = await waitForTurn(harness, conversationId, "WAITING_USER");
+    expect(waiting.roleRuns[0]?.textSoFar).toBe("Small draft");
+    expect(deps.model.calls[0]?.cancellation.cancelled).toBe(true);
+    await harness.dispatch({ type: "SubmitQuestion", commandId: "B", conversationId, text: "B" });
+    const resumed = await createHarness(deps);
+    expect(deps.model.calls).toHaveLength(1);
+    expect(await resumed.dispatch({ type: "ResumeQueue", commandId: "resume", conversationId })).toMatchObject({ ok: false, error: { code: "QUEUE_BLOCKED" } });
+    await resumed.dispatch({ type: "StopTurn", commandId: "stop", turnId: waiting.id });
+    await resumed.dispatch({ type: "ResumeQueue", commandId: "resume-after-stop", conversationId });
+    await waitForTurn(resumed, conversationId, "COMPLETED", 1);
+    deps.model.calls[0]!.complete();
+  });
+
+  it("requires an explicit new retrieval attempt after an unknown RAG outcome", async () => {
+    const deps = createTestDependencies();
+    deps.rag.holdNext();
+    const harness = await createHarness(deps);
+    const conversationId = await createConversation(harness);
+    await harness.dispatch({ type: "SubmitQuestion", commandId: "A", conversationId, text: "A" });
+    await until(() => deps.rag.calls.length === 1);
+    deps.rag.calls[0]!.unknown();
+    const waiting = await waitForTurn(harness, conversationId, "WAITING_USER");
+    expect(deps.model.calls).toHaveLength(0);
+    expect(deps.rag.calls).toHaveLength(1);
+    const command = { type: "RegenerateRole" as const, commandId: "retry", roleRunId: waiting.roleRuns[0]!.id };
+    const [first, replay] = await Promise.all([harness.dispatch(command), harness.dispatch(command)]);
+    expect(first).toEqual(replay);
+    const completed = await waitForTurn(harness, conversationId, "COMPLETED");
+    expect(completed.roleRuns[0]?.attempts.map((attempt) => [attempt.kind, attempt.status])).toEqual([["RAG", "OUTCOME_UNKNOWN"], ["RAG", "SUCCEEDED"], ["MODEL", "SUCCEEDED"]]);
+    expect(completed.roleRuns[0]?.attempts[1]?.previousAttemptId).toBe(waiting.roleRuns[0]?.attempts[0]?.id);
+  });
+
+  it("stops during retrieval and ignores its late evidence", async () => {
+    const deps = createTestDependencies();
+    deps.rag.holdNext();
+    const harness = await createHarness(deps);
+    const conversationId = await createConversation(harness);
+    await harness.dispatch({ type: "SubmitQuestion", commandId: "A", conversationId, text: "A" });
+    await until(() => deps.rag.calls.length === 1);
+    const active = await waitForTurn(harness, conversationId, "RUNNING");
+    await harness.dispatch({ type: "StopTurn", commandId: "stop", turnId: active.id });
+    const stopped = await waitForTurn(harness, conversationId, "STOPPED");
+    deps.rag.calls[0]!.complete();
+    for (let index = 0; index < 20; index++) await harness.query({ type: "GetConversation", conversationId });
+    expect(await harness.query({ type: "GetTurn", turnId: stopped.id })).toMatchObject({ ok: true, data: stopped });
+    expect(deps.model.calls).toHaveLength(0);
+  });
+});

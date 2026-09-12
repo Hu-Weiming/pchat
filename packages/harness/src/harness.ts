@@ -4,6 +4,9 @@ import { copy, failure } from "./data";
 import { eventStream } from "./events";
 import { TurnCoordinator } from "./coordinator";
 import { emit } from "./journal";
+import { interruptActiveTurns, stopTurn } from "./control";
+import { transition } from "./transitions";
+import { validateConfiguration } from "./configuration";
 
 export interface PchatHarness {
   dispatch(command: HarnessCommand): Promise<CommandReceipt>;
@@ -20,14 +23,20 @@ function projectConversation(conversation: ConversationRecord): ConversationProj
 }
 
 export async function createHarness(dependencies: HarnessDependencies): Promise<PchatHarness> {
+  dependencies = validateConfiguration(dependencies);
   const { store, ids, clock } = dependencies;
   const roles = copy(dependencies.roles);
-  const epoch = await store.transaction((state) => ++state.epoch);
+  const epoch = await store.transaction((state) => {
+    interruptActiveTurns(state, clock);
+    state.suspended = false;
+    return ++state.epoch;
+  });
   const coordinator = new TurnCoordinator(dependencies, epoch);
   coordinator.wake();
   return {
     async dispatch(input) {
       const parsed = HarnessCommandSchema.safeParse(input);
+      let applied = false;
       const result = await store.transaction((state): CommandReceipt => {
         if (!parsed.success) return { ok: false, commandId: "", lastEventSeq: state.lastEventSeq, error: failure("INVALID_INPUT") };
         const command = parsed.data;
@@ -55,10 +64,71 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
             emit(state, clock, { type: "QuestionAccepted", conversationId: conversation.id, questionId });
             receipt = { ok: true, commandId: command.commandId, conversationId: conversation.id, questionId, lastEventSeq: state.lastEventSeq };
           }
-        } else receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("INVALID_TRANSITION") };
+        } else if (command.type === "StopTurn") {
+          const turn = state.turns.find((item) => item.id === command.turnId);
+          if (!turn || (turn.status !== "RUNNING" && turn.status !== "WAITING_USER")) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(turn ? "INVALID_TRANSITION" : "NOT_FOUND") };
+          else {
+            coordinator.checkpoint(state, turn);
+            stopTurn(state, turn, clock);
+            receipt = { ok: true, commandId: command.commandId, turnId: turn.id, lastEventSeq: state.lastEventSeq };
+          }
+        } else if (command.type === "ResumeQueue") {
+          const conversation = state.conversations.find((item) => item.id === command.conversationId);
+          const waiting = state.turns.some((turn) => turn.id === conversation?.activeTurnId && turn.status === "WAITING_USER");
+          if (!conversation || waiting || conversation.queueStatus !== "PAUSED") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!conversation ? "NOT_FOUND" : waiting ? "QUEUE_BLOCKED" : "INVALID_TRANSITION") };
+          else {
+            conversation.queueStatus = "RUNNING";
+            emit(state, clock, { type: "QueueResumed", conversationId: conversation.id });
+            receipt = { ok: true, commandId: command.commandId, conversationId: conversation.id, lastEventSeq: state.lastEventSeq };
+          }
+        } else if (command.type === "RegenerateRole") {
+          const turn = state.turns.find((item) => item.roleRuns.some((role) => role.id === command.roleRunId));
+          const role = turn?.roleRuns.find((item) => item.id === command.roleRunId);
+          if (!turn || !role || turn.status !== "WAITING_USER" || role.status !== "WAITING_USER") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!turn || !role ? "NOT_FOUND" : "INVALID_TRANSITION") };
+          else if (state.turns.filter((item) => item.status === "RUNNING").length >= dependencies.limits.maxActiveTurns || state.turns.flatMap((item) => item.roleRuns).filter((item) => item.status === "RETRIEVING" || item.status === "GENERATING").length >= dependencies.limits.maxRoleRuns) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CAPACITY_EXCEEDED") };
+          else {
+            const previous = role.attempts.at(-1);
+            const stage = previous?.kind === "MODEL" || (previous?.kind === "RAG" && previous.status === "SUCCEEDED") ? "GENERATING" : "RETRIEVING";
+            transition("role", role, stage);
+            transition("turn", turn, "RUNNING");
+            const conversation = state.conversations.find((item) => item.id === turn.conversationId)!;
+            transition("question", conversation.questions.find((item) => item.id === turn.questionId)!, "RUNNING");
+            role.textSoFar = ""; role.revision++; role.errorCode = null;
+            emit(state, clock, { type: "RoleStarted", conversationId: turn.conversationId, questionId: turn.questionId, turnId: turn.id, roleRunId: role.id });
+            receipt = { ok: true, commandId: command.commandId, turnId: turn.id, roleRunId: role.id, lastEventSeq: state.lastEventSeq };
+          }
+        } else if (command.type === "WithdrawQuestion") {
+          const conversation = state.conversations.find((item) => item.questions.some((question) => question.id === command.questionId));
+          const question = conversation?.questions.find((item) => item.id === command.questionId);
+          if (!conversation || !question || question.status !== "QUEUED") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!question ? "NOT_FOUND" : "INVALID_TRANSITION") };
+          else {
+            transition("question", question, "WITHDRAWN");
+            emit(state, clock, { type: "QuestionWithdrawn", conversationId: conversation.id, questionId: question.id });
+            receipt = { ok: true, commandId: command.commandId, questionId: question.id, lastEventSeq: state.lastEventSeq };
+          }
+        } else if (command.type === "SuspendRuntime") {
+          if (state.suspended) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("INVALID_TRANSITION") };
+          else {
+            for (const turn of state.turns) coordinator.checkpoint(state, turn);
+            interruptActiveTurns(state, clock);
+            state.suspended = true;
+            for (const conversation of state.conversations) if (conversation.queueStatus !== "PAUSED") {
+              conversation.queueStatus = "PAUSED";
+              emit(state, clock, { type: "QueuePaused", conversationId: conversation.id });
+            }
+            emit(state, clock, { type: "RuntimeSuspended" });
+            receipt = { ok: true, commandId: command.commandId, lastEventSeq: state.lastEventSeq };
+          }
+        } else {
+          const exhaustive: never = command;
+          throw new Error(`Unsupported command: ${String(exhaustive)}`);
+        }
         state.commands.push({ fingerprint, receipt });
+        applied = receipt.ok;
         return receipt;
       });
+      if (applied && parsed.success && parsed.data.type === "StopTurn") coordinator.cancel(parsed.data.turnId);
+      if (applied && parsed.success && parsed.data.type === "SuspendRuntime") coordinator.cancelAll();
       coordinator.wake();
       return result;
     },
