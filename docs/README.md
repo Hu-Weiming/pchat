@@ -2,6 +2,8 @@
 
 本目录只保留当前有效的设计、验证和资料审计文档。文档出现局部重复时，以下职责边界决定哪一份具有权威性。
 
+正式开发从 [`DEVELOPMENT-HANDOFF.md`](./DEVELOPMENT-HANDOFF.md) 开始；该文档说明当前实现、P1 任务、验收条件和开发环境约束。
+
 ## 产品与架构
 
 - [`PCHAT-CURRENT-PRODUCT-CONSENSUS.md`](./PCHAT-CURRENT-PRODUCT-CONSENSUS.md)：已经确认的产品目标、范围和行为。

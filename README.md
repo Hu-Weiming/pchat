@@ -23,6 +23,8 @@ React WebView
 
 当前结构是风险验证结果，不代表最终架构已经冻结。编码前的产品共识、架构方案和安全约束见 [`docs/README.md`](./docs/README.md)。
 
+正式开发接管入口为 [`docs/DEVELOPMENT-HANDOFF.md`](./docs/DEVELOPMENT-HANDOFF.md)。
+
 ## 仓库结构
 
 ```text
