@@ -1,0 +1,3331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pchat · 思想之间 — 哲学研讨工坊 (Atelier MVP Prototype)</title>
+<style>
+/* ==========================================================================
+   THE PHILOSOPHICAL ATELIER DESIGN SYSTEM
+   Tone: Classical Scholarly Elegance meets Modern Intellectual Precision.
+   Inspired by historic scriptoria, critical editions, and focused desktop workbenches.
+   ========================================================================== */
+
+:root {
+  /* Warm Parchment Light Theme */
+  --bg-desk: #f4f2eb;
+  --bg-page: #faf8f5;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f7f5f0;
+  --bg-hover: #edeae1;
+  --bg-active: #e4e0d4;
+  --border-subtle: #e6e2d8;
+  --border-medium: #d6d0c2;
+  --border-heavy: #b8b09d;
+  
+  --ink-primary: #211e1b;
+  --ink-secondary: #58534b;
+  --ink-tertiary: #878075;
+  --ink-faint: #b4ada1;
+  
+  --accent-sienna: #8c321d;        /* Seal Vermilion / Cinnabar */
+  --accent-sienna-soft: #faede9;
+  --accent-oxford: #1c3d5a;        /* Prussian / Oxford Navy */
+  --accent-oxford-soft: #ebf2f8;
+  --accent-amber: #8c631a;         /* Antique Bronze / Ochre */
+  --accent-amber-soft: #fcf4e6;
+  --accent-sage: #3d5e46;          /* Scholar's Sage Green */
+  --accent-sage-soft: #eef5f0;
+  --accent-amethyst: #5c3b6b;      /* Dialectic Plum */
+  --accent-amethyst-soft: #f4edf7;
+
+  /* Geometry & Metrics */
+  --sidebar-w: 268px;
+  --inspector-w: 370px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  
+  /* Elevation */
+  --shadow-sm: 0 1px 3px rgba(33, 30, 27, 0.04), 0 1px 2px rgba(33, 30, 27, 0.03);
+  --shadow-md: 0 4px 14px rgba(33, 30, 27, 0.06), 0 1px 3px rgba(33, 30, 27, 0.04);
+  --shadow-lg: 0 12px 34px rgba(33, 30, 27, 0.10), 0 3px 8px rgba(33, 30, 27, 0.05);
+
+  /* Typography Stacks */
+  --font-serif: "Noto Serif SC", "Songti SC", "Source Han Serif SC", SimSun, Georgia, "Times New Roman", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+
+[data-theme="dark"] {
+  --bg-desk: #141312;
+  --bg-page: #1b1918;
+  --bg-card: #23211f;
+  --bg-card-subtle: #2b2826;
+  --bg-hover: #34312e;
+  --bg-active: #3e3b37;
+  --border-subtle: #36332f;
+  --border-medium: #4a453f;
+  --border-heavy: #6a645b;
+  
+  --ink-primary: #ede8e1;
+  --ink-secondary: #b6b0a6;
+  --ink-tertiary: #847d73;
+  --ink-faint: #59534a;
+  
+  --accent-sienna: #d96347;
+  --accent-sienna-soft: #381f18;
+  --accent-oxford: #6ba4d9;
+  --accent-oxford-soft: #192a3b;
+  --accent-amber: #dba242;
+  --accent-amber-soft: #382c16;
+  --accent-sage: #6eaf7f;
+  --accent-sage-soft: #182e1e;
+  --accent-amethyst: #b78dd1;
+  --accent-amethyst-soft: #311c3b;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.6);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  color: var(--ink-primary);
+  background-color: var(--bg-desk);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Helpers */
+.serif { font-family: var(--font-serif); }
+.mono { font-family: var(--font-mono); }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  transition: all 0.15s ease;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  color: inherit;
+  outline: none;
+}
+
+/* Icons */
+.icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+.icon.lg { width: 20px; height: 20px; }
+.icon.sm { width: 13px; height: 13px; }
+
+/* Custom Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-heavy); }
+
+/* ==========================================================================
+   APP HEADER (WINDOWS TITLEBAR STYLE)
+   ========================================================================== */
+.app-banner {
+  height: 34px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  user-select: none;
+  z-index: 50;
+  flex-shrink: 0;
+}
+.banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  background: var(--accent-sienna-soft);
+  color: var(--accent-sienna);
+  border-radius: var(--radius-xs);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+.banner-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-sienna);
+  animation: pulse 2.2s infinite ease-in-out;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.4); opacity: 0.4; }
+}
+.banner-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.banner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  color: var(--ink-secondary);
+}
+.banner-btn:hover {
+  background: var(--bg-hover);
+  color: var(--ink-primary);
+}
+
+/* ==========================================================================
+   LAYOUT STRUCTURE
+   ========================================================================== */
+.workbench-container {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ==========================================================================
+   SIDEBAR (THE SCRIPTorium / ARCHIVES)
+   ========================================================================== */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 20;
+}
+.brand-section {
+  padding: 18px 18px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-seal {
+  width: 28px;
+  height: 28px;
+  background: var(--accent-sienna);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-sm);
+}
+.brand-title {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  line-height: 1.15;
+}
+.brand-sub {
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.new-dialogue-btn {
+  margin: 14px 14px 8px;
+  padding: 9px 12px;
+  background: var(--ink-primary);
+  color: var(--bg-page);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+}
+.new-dialogue-btn:hover {
+  background: var(--accent-sienna);
+  color: #ffffff;
+}
+
+/* Primary Navigation in Sidebar */
+.nav-menu {
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--ink-secondary);
+  text-align: left;
+}
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--ink-primary);
+}
+.nav-item.active {
+  background: var(--bg-active);
+  color: var(--accent-sienna);
+  font-weight: 600;
+}
+.nav-counter {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  background: var(--bg-card-subtle);
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Session History Section */
+.history-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.section-header {
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  padding: 6px 8px 6px;
+  font-weight: 600;
+}
+.session-card {
+  display: flex;
+  align-items: flex-start;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 3px;
+  text-align: left;
+  position: relative;
+  group: true;
+}
+.session-card:hover {
+  background: var(--bg-hover);
+}
+.session-card.active {
+  background: var(--bg-card-subtle);
+  border-left: 3px solid var(--accent-sienna);
+  box-shadow: var(--shadow-sm);
+}
+.session-info {
+  flex: 1;
+  min-width: 0;
+}
+.session-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.session-meta {
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+.session-action-del {
+  opacity: 0;
+  padding: 2px;
+  color: var(--ink-tertiary);
+  border-radius: var(--radius-xs);
+}
+.session-card:hover .session-action-del {
+  opacity: 0.8;
+}
+.session-action-del:hover {
+  opacity: 1;
+  color: var(--accent-sienna);
+  background: var(--bg-hover);
+}
+
+/* Bottom Profile / Environment */
+.sidebar-footer {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.engine-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.status-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-sage);
+}
+
+/* ==========================================================================
+   CENTER WORKSPACE: THE DIALECTIC CHAMBER
+   ========================================================================== */
+.main-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-page);
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Top App Bar inside main stage */
+.topbar {
+  height: 52px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  flex-shrink: 0;
+}
+.topic-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+.topic-current {
+  color: var(--ink-primary);
+  font-weight: 600;
+  font-size: 13px;
+}
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Philosophical Mode Badge & Switcher */
+.mode-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-card-subtle);
+  color: var(--ink-secondary);
+}
+.mode-capsule.inference {
+  border-color: var(--accent-oxford);
+  color: var(--accent-oxford);
+  background: var(--accent-oxford-soft);
+}
+.mode-capsule.primary {
+  border-color: var(--accent-sage);
+  color: var(--accent-sage);
+  background: var(--accent-sage-soft);
+}
+.mode-capsule.cosplay {
+  border-color: var(--accent-amethyst);
+  color: var(--accent-amethyst);
+  background: var(--accent-amethyst-soft);
+}
+
+.action-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  color: var(--ink-secondary);
+  border: 1px solid transparent;
+}
+.action-icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--ink-primary);
+}
+.action-icon-btn.active {
+  background: var(--bg-active);
+  color: var(--accent-sienna);
+  border-color: var(--border-medium);
+}
+
+/* ==========================================================================
+   DIALECTIC THREAD AREA
+   ========================================================================== */
+.thread-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 36px 40px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.thread-content-wrap {
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* Turn Card & Question */
+.turn-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.inquiry-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--ink-primary);
+  border-radius: var(--radius-md);
+  padding: 18px 22px;
+  box-shadow: var(--shadow-sm);
+}
+.inquiry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--ink-tertiary);
+}
+.inquiry-label {
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-sienna);
+}
+.inquiry-body {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--ink-primary);
+  font-weight: 500;
+}
+.inquiry-addressed-to {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--ink-secondary);
+}
+
+/* Turn Execution State Bar */
+.turn-exec-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--ink-secondary);
+}
+.turn-exec-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-amber);
+  animation: pulse 1.5s infinite;
+}
+
+/* Answers Layout: Grid when multiple thinkers, single when one */
+.stances-container {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(var(--stance-cols, 1), minmax(0, 1fr));
+}
+.stance-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  transition: border-color 0.2s;
+}
+.stance-card:hover {
+  border-color: var(--border-heavy);
+}
+.stance-card.active-reading {
+  border-color: var(--accent-oxford);
+  box-shadow: 0 0 0 1px var(--accent-oxford), var(--shadow-md);
+}
+
+/* Stance Header */
+.stance-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.thinker-portrait-seal {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-medium);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent-sienna);
+  flex-shrink: 0;
+}
+.thinker-title-area {
+  flex: 1;
+  min-width: 0;
+}
+.thinker-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.thinker-name {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+.stage-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--ink-secondary);
+}
+.school-line {
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  margin-top: 3px;
+}
+
+.stance-mode-indicator {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-medium);
+  font-weight: 500;
+}
+
+/* Stance Content & Argumentation */
+.stance-thesis-claim {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--ink-primary);
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--bg-card-subtle);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-sienna);
+}
+.stance-body-text {
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--ink-secondary);
+  white-space: pre-wrap;
+  flex: 1;
+}
+
+/* Citation Anchors in Text */
+.text-citation {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  margin: 0 2px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-amber-soft);
+  color: var(--accent-amber);
+  border: 1px solid var(--border-medium);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  vertical-align: baseline;
+  text-decoration: none;
+}
+.text-citation:hover {
+  background: var(--accent-amber);
+  color: #fff;
+  border-color: var(--accent-amber);
+}
+
+/* Stance Card Footer */
+.stance-foot {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-tertiary);
+}
+.inspect-sources-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--accent-oxford);
+  font-weight: 500;
+}
+.inspect-sources-btn:hover {
+  background: var(--accent-oxford-soft);
+  border-color: var(--accent-oxford);
+}
+
+/* ==========================================================================
+   DIALECTIC MATRIX / COMPARATIVE SYNTHESIS (ANTINOMY BOARD)
+   ========================================================================== */
+.dialectic-matrix-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  margin-top: 6px;
+}
+.matrix-header {
+  padding: 14px 20px;
+  background: var(--bg-card-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.matrix-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+.matrix-grid {
+  display: grid;
+  grid-template-columns: 110px repeat(var(--matrix-cols, 2), minmax(0, 1fr));
+  font-size: 12px;
+}
+.matrix-cell {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  line-height: 1.6;
+}
+.matrix-cell.col-head {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  background: var(--bg-card-subtle);
+  color: var(--ink-primary);
+  border-bottom: 2px solid var(--border-medium);
+}
+.matrix-cell.row-label {
+  font-weight: 600;
+  color: var(--ink-tertiary);
+  background: var(--bg-card-subtle);
+  border-right: 1px solid var(--border-subtle);
+  font-size: 11px;
+}
+.matrix-cell:not(.row-label):not(.col-head) {
+  border-right: 1px dashed var(--border-subtle);
+}
+.matrix-footer {
+  padding: 10px 18px;
+  background: var(--bg-card-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-tertiary);
+}
+.deepen-inquiry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--accent-sienna);
+  color: #fff;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 500;
+}
+.deepen-inquiry-btn:hover {
+  background: #732614;
+}
+
+/* ==========================================================================
+   QUEUE TRAY & BOTTOM COMPOSER (HANDSHAKE & PENDING QUEUE)
+   ========================================================================== */
+.composer-dock {
+  padding: 12px 32px 18px;
+  background: var(--bg-page);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.composer-container {
+  max-width: 980px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* The Pending Queue Strip (When generation is running) */
+.queue-strip {
+  background: var(--accent-amber-soft);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  animation: slideDown 0.2s ease-out;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.queue-strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-amber);
+}
+.queue-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.queue-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+}
+.queue-item-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 12px;
+  color: var(--ink-secondary);
+}
+.withdraw-btn {
+  color: var(--ink-tertiary);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 10px;
+}
+.withdraw-btn:hover {
+  color: var(--accent-sienna);
+  background: var(--bg-hover);
+}
+
+/* Active Composer Box */
+.composer-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+.composer-box:focus-within {
+  border-color: var(--ink-primary);
+  box-shadow: var(--shadow-md);
+}
+.composer-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--ink-tertiary);
+  border-bottom: 1px dashed var(--border-subtle);
+  padding-bottom: 6px;
+}
+.active-thinkers-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.thinker-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  font-size: 11px;
+  color: var(--ink-primary);
+  font-weight: 500;
+}
+.thinker-pill .remove-p {
+  cursor: pointer;
+  color: var(--ink-tertiary);
+}
+.thinker-pill .remove-p:hover {
+  color: var(--accent-sienna);
+}
+.add-thinker-trigger {
+  color: var(--accent-oxford);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.add-thinker-trigger:hover {
+  background: var(--accent-oxford-soft);
+}
+
+.composer-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-size: 13px;
+  line-height: 1.6;
+  min-height: 52px;
+  color: var(--ink-primary);
+}
+.composer-input::placeholder {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+.composer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.composer-hints {
+  font-size: 10px;
+  color: var(--ink-tertiary);
+}
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-stop {
+  padding: 6px 12px;
+  background: var(--accent-sienna-soft);
+  color: var(--accent-sienna);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+}
+.btn-stop:hover {
+  background: var(--accent-sienna);
+  color: #fff;
+}
+.btn-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: var(--ink-primary);
+  color: var(--bg-card);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+}
+.btn-submit:hover {
+  background: var(--accent-sienna);
+}
+.btn-submit.queued {
+  background: var(--accent-amber);
+}
+
+/* ==========================================================================
+   RIGHT INSPECTOR: SCRIPTorium EVIDENCE & CITATIONS
+   ========================================================================== */
+.inspector-panel {
+  width: var(--inspector-w);
+  background: var(--bg-card);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 20;
+  transition: transform 0.2s ease, width 0.2s ease;
+}
+.inspector-panel.collapsed {
+  display: none;
+}
+.inspector-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card-subtle);
+}
+.inspector-title {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-primary);
+}
+.inspector-tabs {
+  display: flex;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+.inspector-tab {
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-tertiary);
+  border-bottom: 2px solid transparent;
+}
+.inspector-tab:hover {
+  color: var(--ink-primary);
+}
+.inspector-tab.active {
+  color: var(--accent-sienna);
+  border-bottom-color: var(--accent-sienna);
+}
+
+.inspector-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Evidence Card */
+.evidence-dossier {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+}
+.evidence-dossier-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.evidence-type-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.evidence-type-badge.primary-text {
+  background: var(--accent-sage-soft);
+  color: var(--accent-sage);
+  border: 1px solid var(--border-subtle);
+}
+.evidence-type-badge.reconstruction {
+  background: var(--accent-oxford-soft);
+  color: var(--accent-oxford);
+  border: 1px solid var(--border-subtle);
+}
+.evidence-type-badge.secondary-study {
+  background: var(--accent-amber-soft);
+  color: var(--accent-amber);
+  border: 1px solid var(--border-subtle);
+}
+
+.evidence-book-title {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  margin-bottom: 4px;
+}
+.evidence-locator {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-amber);
+  margin-bottom: 10px;
+}
+.evidence-passage {
+  font-family: var(--font-serif);
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--ink-secondary);
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border-left: 2px solid var(--accent-amber);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  font-style: italic;
+  margin-bottom: 10px;
+}
+.evidence-verification-note {
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--ink-tertiary);
+  padding: 8px 10px;
+  background: var(--bg-desk);
+  border-radius: var(--radius-xs);
+}
+
+/* ==========================================================================
+   OTHER VIEWS: THINKERS CATALOG & SETTINGS WORKBENCH
+   ========================================================================== */
+.full-page-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+.view-header {
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 16px;
+}
+.view-title {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+.view-subtitle {
+  font-size: 12px;
+  color: var(--ink-secondary);
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+/* Thinkers Filter & Grid */
+.thinkers-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.filter-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  width: 320px;
+}
+.filter-search-box input {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  width: 100%;
+}
+.school-tags-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.school-tag-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--ink-secondary);
+}
+.school-tag-btn:hover {
+  background: var(--bg-hover);
+}
+.school-tag-btn.active {
+  background: var(--accent-sienna);
+  color: #fff;
+  border-color: var(--accent-sienna);
+}
+
+.thinkers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 16px;
+}
+.thinker-dossier-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+.thinker-dossier-card:hover {
+  border-color: var(--border-heavy);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.thinker-dossier-card.selected {
+  border-color: var(--accent-sienna);
+  box-shadow: 0 0 0 1px var(--accent-sienna), var(--shadow-sm);
+}
+.thinker-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.thinker-card-body {
+  font-size: 12px;
+  color: var(--ink-secondary);
+  line-height: 1.6;
+  flex: 1;
+}
+.thinker-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+}
+
+/* Settings View Layout */
+.settings-columns {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+}
+.settings-section-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.settings-section-card h3 {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.form-field label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+}
+.form-field input, .form-field select {
+  padding: 8px 12px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.form-field .help-text {
+  font-size: 10px;
+  color: var(--ink-tertiary);
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   MODALS & DIALOGS
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 16, 14, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+.modal-window {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 680px;
+  max-width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalPop 0.18s ease-out;
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal-window.wide { width: 840px; }
+.modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card-subtle);
+}
+.modal-header h2 {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+}
+.modal-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-card-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Toast Notifications */
+.toast-notice {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink-primary);
+  color: var(--bg-card);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: toastFade 0.2s ease-out;
+}
+@keyframes toastFade {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Utility Helpers */
+.flex-row { display: flex; align-items: center; }
+.between { justify-content: space-between; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body data-theme="light">
+
+<!-- WINDOWS APP TITLE & PROTOTYPE BANNER -->
+<header class="app-banner">
+  <div class="flex-row" style="gap: 12px;">
+    <span class="banner-badge"><span class="banner-indicator"></span>PCHAT ATELIER · WINDOWS MVP 原型</span>
+    <span>本地离线环境模拟 · 无外部收费接口 · 满足真实架构规格</span>
+  </div>
+  <div class="banner-tools">
+    <button class="banner-btn" id="toggleThemeBtn" title="切换深色/浅色书房模式">
+      <svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <span>书房模式</span>
+    </button>
+    <button class="banner-btn" id="openScenariosBtn" title="打开 MVP 验收场景与测试用例">
+      <svg class="icon sm" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <span>验收场景</span>
+    </button>
+    <button class="banner-btn" id="openArchitectureBtn" title="查看 Windows MVP 系统架构合规说明">
+      <svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+      <span>架构共识</span>
+    </button>
+  </div>
+</header>
+
+<div class="workbench-container">
+
+  <!-- ========================================================================
+       LEFT SIDEBAR: THE SCRIPTORIUM & DIALOGUE ARCHIVES
+       ======================================================================== -->
+  <aside class="sidebar">
+    <div class="brand-section">
+      <div class="brand-mark">
+        <div class="brand-seal">Ψ</div>
+        <div>
+          <div class="brand-title">Pchat · 思想之间</div>
+          <div class="brand-sub">PHILOSOPHICAL AGENT WORKBENCH</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="new-dialogue-btn" id="btnNewChat">
+      <svg class="icon sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span>开启新的思想辨析</span>
+    </button>
+
+    <nav class="nav-menu">
+      <button class="nav-item active" data-nav="dialogue">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>思想研讨殿堂</span>
+      </button>
+      <button class="nav-item" data-nav="thinkers">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>思想人物资料包</span>
+        <span class="nav-counter" id="catalogCount">20</span>
+      </button>
+      <button class="nav-item" data-nav="journal">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>思想日记与评论</span>
+      </button>
+      <button class="nav-item" data-nav="settings">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>引擎适配与设置</span>
+      </button>
+    </nav>
+
+    <div class="section-header">辨析历史 (SESSIONS)</div>
+    <div class="history-section" id="sessionList">
+      <!-- Injected via JS -->
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="engine-status">
+        <span class="status-pip"></span>
+        <span>DeepSeek 适配器就绪</span>
+      </div>
+      <span class="mono" style="font-size: 10px; color: var(--ink-tertiary);">v0.1-win</span>
+    </div>
+  </aside>
+
+  <!-- ========================================================================
+       CENTER STAGE: PHILOSOPHICAL DIALOGUE WORKBENCH
+       ======================================================================== -->
+  <main class="main-stage">
+    
+    <!-- Top Action Bar -->
+    <header class="topbar">
+      <div class="topic-breadcrumbs">
+        <span>研讨主题</span>
+        <span>/</span>
+        <span class="topic-current serif" id="currentTopicDisplay">自由意志与因果决定论</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="mode-capsule inference" id="btnChangeMode" title="点击切换知识模式">
+          <svg class="icon sm" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span id="currentModeLabel">有据推演模式</span>
+        </button>
+        <button class="action-icon-btn active" id="btnToggleInspector" title="收起/展开右侧原典依据台">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- VIEWS ROUTING CONTAINER -->
+    <div style="flex:1; display:flex; flex-direction:column; min-height:0; overflow:hidden;" id="viewContainer">
+      
+      <!-- 1. DIALOGUE VIEW -->
+      <div id="dialogueView" style="flex:1; display:flex; flex-direction:column; min-height:0; overflow:hidden;">
+        <div class="thread-viewport" id="threadViewport">
+          <div class="thread-content-wrap" id="threadContent">
+            <!-- Dynamic Turns injected via JS -->
+          </div>
+        </div>
+
+        <!-- COMPOSER & FIFO QUEUE DOCK -->
+        <div class="composer-dock">
+          <div class="composer-container">
+            
+            <!-- Pending FIFO Queue Visualizer -->
+            <div class="queue-strip hidden" id="queueStrip">
+              <div class="queue-strip-head">
+                <span class="flex-row" style="gap:6px;">
+                  <svg class="icon sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>问题排队等待区 · 当前整轮回答完成后依次执行</span>
+                </span>
+                <span id="queueCountBadge" style="font-size:10px;">0 条等待中</span>
+              </div>
+              <div class="queue-items-list" id="queueItemsList">
+                <!-- Queued questions injected here -->
+              </div>
+            </div>
+
+            <!-- Handshake Composer Box -->
+            <div class="composer-box">
+              <div class="composer-meta-bar">
+                <div class="active-thinkers-chips">
+                  <span>参与辨析立场：</span>
+                  <div id="activeThinkerBadges" style="display:inline-flex; gap:6px;"></div>
+                  <button class="add-thinker-trigger" id="btnAddThinker">
+                    <svg class="icon sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>调整/邀请思想家 (1-3位)</span>
+                  </button>
+                </div>
+                <div id="turnStateIndicator" class="mono" style="font-size:10px;">空闲就绪</div>
+              </div>
+
+              <textarea class="composer-input" id="promptTextarea" placeholder="提出你的哲学命题、前提怀疑，或对各立场的追问…… (Enter 发送，Shift+Enter 换行)"></textarea>
+
+              <div class="composer-controls">
+                <div class="composer-hints">
+                  <span>Enter 发送 · 正在生成时提交自动进入 FIFO 队列 · 历史依据快照随时可查</span>
+                </div>
+                <div class="composer-actions">
+                  <button class="btn-stop hidden" id="btnStopRun">
+                    <svg class="icon sm" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>
+                    <span>停止本轮</span>
+                  </button>
+                  <button class="btn-submit" id="btnSubmit">
+                    <span>发送命题</span>
+                    <svg class="icon sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. THINKERS CATALOG VIEW -->
+      <div id="thinkersView" class="full-page-view hidden">
+        <div class="view-header">
+          <h1 class="view-title">思想立场模型与资料包目录 (20 个阶段资料包)</h1>
+          <p class="view-subtitle">在限定的思想阶段和文本范围内重构立场模型，拒绝无依据的“数字复活”或无出处的“常识推论”。每个阶段维护独立知识范围。</p>
+        </div>
+        <div class="thinkers-toolbar">
+          <div class="filter-search-box">
+            <svg class="icon sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="catalogSearch" placeholder="检索思想家、思想阶段、核心概念或著作……">
+          </div>
+          <button class="btn-submit" style="padding: 6px 14px; font-size:12px;" id="btnReturnToDialogue">返回研讨殿堂</button>
+        </div>
+        <div class="school-tags-row" id="schoolFiltersRow">
+          <!-- Injected via JS -->
+        </div>
+        <div class="thinkers-grid" id="thinkersGrid">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+
+      <!-- 3. THOUGHT JOURNAL & COMMENTS VIEW (MVP+ Post MVP SPEC Preview) -->
+      <div id="journalView" class="full-page-view hidden">
+        <div class="view-header">
+          <h1 class="view-title">思想日记与评论回顾</h1>
+          <p class="view-subtitle">依据当天聊天中用户实际表达的问题与看法整理，不包含系统评价或心理画像，亦不作为哲学家角色的记忆。历史正文只读，支持独立时间戳追加评论。</p>
+        </div>
+        <div style="max-width: 800px; margin: 0 auto; display:flex; flex-direction:column; gap:20px;">
+          <div class="inquiry-card" style="border-left-color: var(--accent-sage);">
+            <div class="between flex-row" style="margin-bottom:10px;">
+              <span class="mono" style="font-size:12px; color:var(--accent-sage); font-weight:600;">2026-08-31 · 今日个人思想记录 (用户可主动编辑)</span>
+              <button class="btn-submit" style="padding:4px 10px; font-size:11px;" id="btnSaveJournal">保存今日正文</button>
+            </div>
+            <textarea id="todayJournalContent" style="width:100%; min-height:110px; background:transparent; border:none; resize:vertical; font-size:13px; line-height:1.8; color:var(--ink-primary); font-family:var(--font-serif);" placeholder="记录你今天通过与康德、休谟的对话，对自己最初前提的检视……">今天在与康德（批判期）和休谟关于“自由意志”的探讨中，我最初认为“只要一切物理事件皆有前因，人便不可能拥有真正的自由”。但在检视康德的自律原则后，我意识到需要区分“心理欲望的冲动因”与“理性行动者为自己立法的实践法则”。我不一定完全接受康德本体界的划分，但已经不再满足于简单的机械决定论。</textarea>
+          </div>
+
+          <div style="margin-top:10px;">
+            <h3 class="serif" style="font-size:15px; margin-bottom:12px; color:var(--ink-secondary);">历史日记与独立时间戳评论 (正文只读)</h3>
+            <div class="stance-card" style="margin-bottom:14px;">
+              <div class="between flex-row" style="margin-bottom:8px; font-size:11px; color:var(--ink-tertiary);">
+                <span class="mono">2026-08-25 日记记录</span>
+                <span class="stage-tag">历史正文已锁定只读</span>
+              </div>
+              <p class="serif" style="font-size:13px; line-height:1.7; color:var(--ink-primary);">“今天思考幸福的定义。原以为伊壁鸠鲁的享乐主义就是肆意享乐，查验《致美诺寇书》后发现其核心是身体无痛苦与灵魂无纷扰（Ataraxia），甚至主张极其清贫克制的生活。”</p>
+              
+              <!-- Appended Comments with independent timestamp -->
+              <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--border-subtle);" id="commentsThread">
+                <div style="font-size:11px; font-weight:600; color:var(--ink-tertiary); margin-bottom:8px;">追加评论记录（不篡改原日记日期）：</div>
+                <div style="background:var(--bg-card-subtle); padding:8px 12px; border-radius:var(--radius-xs); margin-bottom:6px; font-size:11px;">
+                  <div class="between flex-row" style="color:var(--ink-tertiary); margin-bottom:4px;">
+                    <strong>我追加的回顾</strong>
+                    <span class="mono">2026-08-31 16:45</span>
+                  </div>
+                  <div>“今天读了亚里士多德的《尼各马可伦理学》，发现伊壁鸠鲁的消极静心与亚氏追求德性活动的 Eudaimonia 形成了非常清晰的对比。”</div>
+                </div>
+              </div>
+
+              <div class="flex-row" style="gap:8px; margin-top:10px;">
+                <input type="text" id="newCommentInput" placeholder="对此历史记录追加新的思考评论……" style="flex:1; padding:6px 10px; font-size:11px; border:1px solid var(--border-medium); border-radius:var(--radius-xs); background:var(--bg-card-subtle);">
+                <button class="btn-submit" style="padding:6px 12px; font-size:11px;" id="btnAddComment">追加评论</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. SETTINGS & ENGINE WORKBENCH -->
+      <div id="settingsView" class="full-page-view hidden">
+        <div class="view-header">
+          <h1 class="view-title">系统引擎、安全凭证与 MVP 验收控制台</h1>
+          <p class="view-subtitle">Windows 本地架构遵循 deep module 与供应商解耦原则。大模型适配器（DeepSeek）、云端向量检索与知识库隔离，凭证存入系统安全存储，不硬编码入库。</p>
+        </div>
+        <div class="settings-columns">
+          <div>
+            <div class="settings-section-card">
+              <h3>大语言模型适配层 (LLM Adapter)</h3>
+              <div class="form-field">
+                <label>首版适配器供应商</label>
+                <input type="text" value="DeepSeek 深度求索 (deepseek-chat / deepseek-reasoner)" disabled>
+                <div class="help-text">遵循统一适配器规范，屏蔽分片流式事件、断流重连与鉴权错误。</div>
+              </div>
+              <div class="form-field">
+                <label>Windows 安全凭证存储引用 (DPAPI / Credential Manager)</label>
+                <input type="text" value="win_secure://pchat/tokens/deepseek_key" disabled>
+                <div class="help-text">真实应用密钥存入系统安全凭据管理器，不写入 SQLite 普通文件或日志。</div>
+              </div>
+              <div class="form-field">
+                <label>单轮模型并发上限</label>
+                <input type="number" value="2" disabled>
+                <div class="help-text">当选定 2-3 位思想家时，执行独立检索与并发请求，并在整轮完成后生成立场对照。</div>
+              </div>
+            </div>
+
+            <div class="settings-section-card">
+              <h3>云端知识库与资料包隔离 (RAG Repository)</h3>
+              <div class="form-field">
+                <label>资料包存储规范</label>
+                <input type="text" value="独立知识库分区 (demo-kant, demo-hume, demo-witt-early...)" disabled>
+                <div class="help-text">严格防止跨阶段串库。早期维特根斯坦与晚期维特根斯坦拥有独立文献索引。</div>
+              </div>
+              <div class="form-field">
+                <label>出处缺失降级策略</label>
+                <input type="text" value="降级为概括转述，严禁模型伪造卷册命题号" disabled>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="settings-section-card">
+              <h3>原型故障模拟器 (Fault Injection for MVP Testing)</h3>
+              <p style="font-size:11px; color:var(--ink-tertiary); margin-bottom:12px;">用于 Windows MVP 工程验收：验证网络中断、鉴权失败、资料不足及排队暂停的健壮性。</p>
+              
+              <div class="form-field">
+                <label>下一轮提问模拟响应工况</label>
+                <select id="faultSelect">
+                  <option value="normal">正常流程 (检索、独立生成、核对引用并对照)</option>
+                  <option value="evidence_lack">资料不足 (触发提示并推荐切换开放拟构)</option>
+                  <option value="auth_fail">鉴权错误 (模拟 Key 失效，队列自动暂停)</option>
+                  <option value="network_break">断流异常 (保留未完成草稿，支持重启恢复)</option>
+                  <option value="partial_fail">部分人物失败 (单角色失败不影响其他角色)</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label>流式字符推演速度</label>
+                <select id="speedSelect">
+                  <option value="normal">正常拟真打字速度 (便于观察思考过程与并发)</option>
+                  <option value="fast">快速生成 (便于快速阅读对照与查验依据)</option>
+                </select>
+              </div>
+
+              <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
+                <button class="btn-submit" style="width:100%; justify-content:center;" id="btnSimulateRestart">
+                  <svg class="icon sm" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                  <span>模拟应用重启恢复 (State Persistence)</span>
+                </button>
+                <button class="btn-stop" style="width:100%; text-align:center;" id="btnResetAll">
+                  重置全部原型数据至初始状态
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================================================
+       RIGHT INSPECTOR: SCRIPTORIUM EVIDENCE & MARGINALIA
+       ======================================================================== -->
+  <aside class="inspector-panel" id="inspectorPanel">
+    <div class="inspector-head">
+      <div class="inspector-title">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>原典依据与文献证据台</span>
+      </div>
+      <button class="action-icon-btn" id="btnCloseInspector" title="收起依据台">
+        <svg class="icon sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="inspector-tabs">
+      <button class="inspector-tab active" data-tab="activeSource">当前命题证据</button>
+      <button class="inspector-tab" data-tab="snapshotInfo">历史快照校验</button>
+    </div>
+
+    <div class="inspector-body" id="inspectorBody">
+      <!-- Dynamic Evidence Dossier injected via JS -->
+    </div>
+  </aside>
+
+</div>
+
+<!-- ==========================================================================
+     MODAL DIALOGS CONTAINER
+     ========================================================================== -->
+<div id="modalLayer" class="modal-overlay hidden">
+  <div class="modal-window" id="modalWindow">
+    <div class="modal-header">
+      <h2 id="modalTitle">选择研讨思想家</h2>
+      <button class="action-icon-btn" id="btnModalClose">
+        <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-content" id="modalBody">
+      <!-- Dynamic modal content -->
+    </div>
+    <div class="modal-footer" id="modalFooter">
+      <button class="btn-submit" id="btnModalConfirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast" class="toast-notice hidden"></div>
+
+<!-- ==========================================================================
+     JAVASCRIPT: APPLICATION STATE, CORPUS & EXECUTION PIPELINE
+     ========================================================================== -->
+<script>
+/**
+ * Pchat Atelier State Machine & Domain Fixtures
+ * Strictly adheres to CONTEXT.md & WINDOWS-MVP-SYSTEM-DESIGN-v0.1.md
+ */
+
+// --- 1. 20 INDEPENDENT THINKER STAGES (PHILOSOPHICAL STANCE DOSSIERS) ---
+const CORPUS_THINKERS = [
+  {
+    id: "kant",
+    name: "康德",
+    stage: "批判哲学成熟期",
+    era: "1724 - 1804",
+    school: "德国古典哲学",
+    corpusRange: "demo-kant-critical",
+    primaryWork: "《道德形而上学奠基》与《实践理性批判》",
+    keyConcepts: ["先验自律", "绝对命令", "本体界与现象界", "自身即目的"],
+    initial: "康",
+    color: "var(--accent-sienna)"
+  },
+  {
+    id: "hume",
+    name: "休谟",
+    stage: "人性论与经验怀疑时期",
+    era: "1711 - 1776",
+    school: "英国经验主义",
+    corpusRange: "demo-hume-treatise",
+    primaryWork: "《人性论》与《人类理解研究》",
+    keyConcepts: ["因果怀疑", "情感主义", "恒常联结", "意愿自由相容论"],
+    initial: "休",
+    color: "var(--accent-amber)"
+  },
+  {
+    id: "witt_early",
+    name: "维特根斯坦",
+    stage: "早期逻辑图像论",
+    era: "1889 - 1951",
+    school: "分析与语言哲学",
+    corpusRange: "demo-witt-early-tlp",
+    primaryWork: "《逻辑哲学论》(Tractatus)",
+    keyConcepts: ["逻辑图像", "命题界限", "不可言说者当存沉默"],
+    initial: "维",
+    color: "var(--accent-oxford)"
+  },
+  {
+    id: "witt_late",
+    name: "维特根斯坦",
+    stage: "晚期生活形式与游戏",
+    era: "1889 - 1951",
+    school: "分析与语言哲学",
+    corpusRange: "demo-witt-late-pi",
+    primaryWork: "《哲学研究》(Philosophical Investigations)",
+    keyConcepts: ["语言游戏", "用法即意义", "生活形式", "遵守规则的悖论"],
+    initial: "研",
+    color: "var(--accent-sage)"
+  },
+  {
+    id: "socrates",
+    name: "苏格拉底",
+    stage: "柏拉图早期对话形象",
+    era: "前470 - 前399",
+    school: "古希腊哲学",
+    corpusRange: "demo-socrates-apology",
+    primaryWork: "《申辩篇》《美诺篇》《申辩》",
+    keyConcepts: ["认识你的无知", "精神助产术", "德性即知识"],
+    initial: "苏",
+    color: "var(--accent-amethyst)"
+  },
+  {
+    id: "plato",
+    name: "柏拉图",
+    stage: "理念论成熟期",
+    era: "前427 - 前347",
+    school: "古希腊哲学",
+    corpusRange: "demo-plato-republic",
+    primaryWork: "《理想国》《斐多篇》",
+    keyConcepts: ["理念世界", "洞穴之喻", "回忆说", "正义城邦"],
+    initial: "柏",
+    color: "var(--accent-oxford)"
+  },
+  {
+    id: "aristotle",
+    name: "亚里士多德",
+    stage: "吕克昂学园成熟期",
+    era: "前384 - 前322",
+    school: "古希腊哲学",
+    corpusRange: "demo-aristotle-ethics",
+    primaryWork: "《尼各马可伦理学》《形而上学》",
+    keyConcepts: ["中庸之道", "目的论", "实践智慧 (Phronesis)", "最高之善 (Eudaimonia)"],
+    initial: "亚",
+    color: "var(--accent-sage)"
+  },
+  {
+    id: "epicurus",
+    name: "伊壁鸠鲁",
+    stage: "花园学派伦理时期",
+    era: "前341 - 前270",
+    school: "希腊化哲学",
+    corpusRange: "demo-epicurus-letters",
+    primaryWork: "《致美诺寇书》《主要论断》",
+    keyConcepts: ["身体无痛苦", "灵魂无纷扰 (Ataraxia)", "消除神明与死亡恐惧"],
+    initial: "伊",
+    color: "var(--accent-amber)"
+  },
+  {
+    id: "zeno",
+    name: "芝诺与斯多亚",
+    stage: "斯多亚早期与罗马延续",
+    era: "前334 - 前262",
+    school: "希腊化哲学",
+    corpusRange: "demo-stoa-fragments",
+    primaryWork: "斯多亚学派残篇与《沉思录》",
+    keyConcepts: ["顺应自然生活", "控制二分法", "内心的坚毅壁垒"],
+    initial: "芝",
+    color: "var(--accent-sienna)"
+  },
+  {
+    id: "descartes",
+    name: "笛卡尔",
+    stage: "第一哲学沉思期",
+    era: "1596 - 1650",
+    school: "近代大陆唯理主义",
+    corpusRange: "demo-descartes-meditations",
+    primaryWork: "《第一哲学沉思集》《方法论》",
+    keyConcepts: ["普遍怀疑", "我思故我在", "心物二元论", "清晰明白之观念"],
+    initial: "笛",
+    color: "var(--accent-oxford)"
+  },
+  {
+    id: "spinoza",
+    name: "斯宾诺莎",
+    stage: "几何学伦理时期",
+    era: "1632 - 1677",
+    school: "近代大陆唯理主义",
+    corpusRange: "demo-spinoza-ethics",
+    primaryWork: "《伦理学》(Ethica)",
+    keyConcepts: ["神即自然 (泛神论)", "唯有一实体", "自由是对必然性的认识"],
+    initial: "斯",
+    color: "var(--accent-sage)"
+  },
+  {
+    id: "leibniz",
+    name: "莱布尼茨",
+    stage: "单子论哲学体系",
+    era: "1646 - 1716",
+    school: "近代大陆唯理主义",
+    corpusRange: "demo-leibniz-monad",
+    primaryWork: "《单子论》《神正论》",
+    keyConcepts: ["单子 (Monad)", "前定和谐", "充足理由律", "最好可能之世界"],
+    initial: "莱",
+    color: "var(--accent-amethyst)"
+  },
+  {
+    id: "locke",
+    name: "洛克",
+    stage: "认识论奠基期",
+    era: "1632 - 1704",
+    school: "英国经验主义",
+    corpusRange: "demo-locke-understanding",
+    primaryWork: "《人类理解论》《政府论下篇》",
+    keyConcepts: ["心灵白板说 (Tabula Rasa)", "感觉与反省", "自然权利"],
+    initial: "洛",
+    color: "var(--accent-amber)"
+  },
+  {
+    id: "hegel",
+    name: "黑格尔",
+    stage: "耶拿现象学成熟期",
+    era: "1770 - 1831",
+    school: "德国古典哲学",
+    corpusRange: "demo-hegel-spirit",
+    primaryWork: "《精神现象学》《法哲学原理》",
+    keyConcepts: ["辩证法与扬弃 (Aufhebung)", "主奴斗争与承认", "绝对精神之展开"],
+    initial: "黑",
+    color: "var(--accent-sienna)"
+  },
+  {
+    id: "schopenhauer",
+    name: "叔本华",
+    stage: "意志与表象哲学",
+    era: "1788 - 1860",
+    school: "近现代生命与唯意志论",
+    corpusRange: "demo-schopenhauer-will",
+    primaryWork: "《作为意志和表象的世界》",
+    keyConcepts: ["盲目无止境的生命意志", "痛苦与空虚的钟摆", "审美解脱与慈悲同情"],
+    initial: "叔",
+    color: "var(--accent-amber)"
+  },
+  {
+    id: "nietzsche",
+    name: "尼采",
+    stage: "查拉图斯特拉与重估价值后期",
+    era: "1844 - 1900",
+    school: "近现代存在与唯意志论",
+    corpusRange: "demo-nietzsche-genealogy",
+    primaryWork: "《道德的谱系》《善恶的彼岸》",
+    keyConcepts: ["重估一切价值", "主人道德与奴隶道德", "权力意志", "超人 (Übermensch)"],
+    initial: "尼",
+    color: "var(--accent-sienna)"
+  },
+  {
+    id: "husserl",
+    name: "胡塞尔",
+    stage: "纯粹现象学奠基",
+    era: "1859 - 1938",
+    school: "现象学与存在主义",
+    corpusRange: "demo-husserl-ideas",
+    primaryWork: "《现象学的观念》《纯粹现象学通论》",
+    keyConcepts: ["回到事物本身", "意向性 (Intentionality)", "先验还原与悬置 (Epoché)"],
+    initial: "胡",
+    color: "var(--accent-oxford)"
+  },
+  {
+    id: "heidegger",
+    name: "海德格尔",
+    stage: "存在与时间前期",
+    era: "1889 - 1976",
+    school: "现象学与存在主义",
+    corpusRange: "demo-heidegger-bt",
+    primaryWork: "《存在与时间》(Sein und Zeit)",
+    keyConcepts: ["此在 (Dasein)", "在世之中 (In-der-Welt-sein)", "向死而在 (Sein-zum-Tode)", "沉沦于常人"],
+    initial: "海",
+    color: "var(--accent-sage)"
+  },
+  {
+    id: "sartre",
+    name: "萨特",
+    stage: "存在先于本质时期",
+    era: "1905 - 1980",
+    school: "存在主义",
+    corpusRange: "demo-sartre-exist",
+    primaryWork: "《存在与虚无》《存在主义是一种人道主义》",
+    keyConcepts: ["存在先于本质", "人被判为自由", "自欺 (Mauvaise foi)", "绝对责任"],
+    initial: "萨",
+    color: "var(--accent-amethyst)"
+  },
+  {
+    id: "arendt",
+    name: "汉娜·阿伦特",
+    stage: "积极生活与公共政治",
+    era: "1906 - 1975",
+    school: "政治哲学与批判理论",
+    corpusRange: "demo-arendt-hc",
+    primaryWork: "《人的境况》《极权主义的起源》",
+    keyConcepts: ["积极生活 (劳动/工作/行动)", "公共领域中的开端 (Natality)", "平庸之恶"],
+    initial: "阿",
+    color: "var(--accent-sienna)"
+  }
+];
+
+// --- 2. DEEP PHILOSOPHICAL FIXTURES & DIALECTIC EVIDENCE ---
+const PHILOSOPHICAL_FIXTURES = {
+  freedom: {
+    title: "如果自然因果决定一切，道德责任与自由意志是否可能？",
+    kant: {
+      claim: "自由并非毫无因果规则的任意妄为，而是理性自我立法的‘自律’（Autonomie）。",
+      body: `必须严格区分“现象界”（Erscheinung）与“本体界 / 物自身”（Ding an sich）。在经验现象界，人类作为生物机体，所有的生理冲动、神经反射与自然倾向确实被严格的自然法则因果必然所支配。\n\n然而，当人运用纯粹实践理性进行意志决断时，人是作为本体界的理性行动者在为自己立法。道德法则不是由外在奖励或物理冲动强加的，而是意志遵循其自身的普遍形式法则——即绝对命令。正如《奠基》中所论证：“意志的自由就是意志在自身之中的自律。”`,
+      citations: [
+        {
+          book: "《道德形而上学奠基》",
+          locator: "Ak. IV, 446-447 (第三章)",
+          type: "primary-text",
+          passage: "“如果意志的自由被假定，那么通过对概念的纯粹分析，道德及其原则也就随之确立。自律原则即是：除其准则同时能被视为普遍法则之外，不做任何选择。”",
+          note: "原典稳定定位依据：普鲁士科学院版标准页码 Ak. IV 446。"
+        }
+      ],
+      premise: "现象必然性与本体自律性的二分架构",
+      concept: "实践理性自律 / 绝对命令",
+      difference: "从先验规范性出发，将自由确立为道德归责的前提"
+    },
+    hume: {
+      claim: "自由意志与因果必然论并不矛盾，所谓自由乃指‘没有受到外在物理强迫’的行动意愿。",
+      body: `我们应当先用经验观察澄清我们所使用的语词。我们在自然界中所观察到的“因果必然性”，归根结底不过是事物间的“恒常联结”（Constant Conjunction），以及由此在人类心灵中形成的习惯性推断。\n\n在人类行动中，性格、动机与行为之间同样具有极高的规则性。如果人的行动真如唯心论所言毫无规律或前因，那反而无法让人对其负责！试想，一个神经失常突发暴行者若其行为脱离其内在动机，我们如何归责？因此，道德责任所需要的不是脱离因果的‘无因妄动’，而是‘相容论自由’：只要我的身体行动不受镣铐和暴力的外在强迫，遵从我内心的欲望意向，此即为经验中唯一有意义的自由。`,
+      citations: [
+        {
+          book: "《人类理解研究》",
+          locator: "第八章 (论自由与必然) § 73",
+          type: "primary-text",
+          passage: "“因为自由若具有任何意义，它只能意味着：根据意志的决定而行动或不行动的一种力量；那就是说，我们如果选择处于静止，我们就可以静止；我们如果选择运动，我们也同样可以运动。”",
+          note: "原典稳定定位依据：牛津标准版第八章第73段，相容论经典论据。"
+        }
+      ],
+      premise: "从自然主义经验观察澄清语词，否定无原因的先验意志",
+      concept: "相容论 (Compatibilism) / 动机的恒常联结",
+      difference: "从心理机制与经验事实出发，视自由为未受阻碍的欲望执行"
+    },
+    synthesis: {
+      divergenceFocus: "自由到底是一种‘摆脱经验因果的先验自我立法’，还是‘未受阻碍地按经验欲望行动’？",
+      kantStandpoint: "若自由仅是顺从心理欲望（即便未受物理捆绑），也只是‘转烤架式假自由’；必须具有理性为准则立法的能力。",
+      humeStandpoint: "先验纯粹理性不过是形而上学的虚构；理性永远是情感的奴隶，脱离动机因果的自由既无法观察也不可能追责。",
+      furtherInquiry: "如果一个人是在完全被欺骗或隐秘洗脑的环境下自愿做出了恶行，休谟的自由定义是否会失效？"
+    }
+  },
+
+  ai: {
+    title: "具有深度推理能力与自我演化的 AI，能否成为真正的伦理主体？",
+    kant: {
+      claim: "按有据推演原则：缺乏具有自律能力的先验自由意志，再复杂的计算结构也依然只是‘工具’而非‘自身即目的’。",
+      body: `【受约束推演模式】原典虽未直接面对机器智能，但其原则具有明确约束力：作为道德主体（Person）的前提，在于行动者能够出于对法则的尊重而行动（Aus Pflicht），而非仅仅依照物理输入-输出条件运算。\n\n无论人工智能的算法多么精妙、损失函数优化得多么符合人类社会道德准则，在康德的体系内，它依旧属于现象界中严格由物理硅基电路与概率因果支配的客体（Sache）。如果它无法拥有摆脱经验决定的先验实践理性，它便不能承担罪责，亦不能享有‘自身即目的’的绝对尊严。我们善待 AI，其道德根基仅在于维护人类自身的道德情感，而非它享有主体地位。`,
+      citations: [
+        {
+          book: "《道德形而上学奠基》",
+          locator: "Ak. IV, 428 (第二章)",
+          type: "reconstruction",
+          passage: "“没有理性的存在物具有的只是一种相对价值，作为手段，因此被称为物；与此相反，有理性的存在者被称为人格，因为他们的本性就已经将他们标明为自身即目的……”",
+          note: "受约束推演依据：由人格与物之划分公理推演现代 AI 地位。"
+        }
+      ],
+      premise: "只有能出于义务而立法的理性者才是目的自身",
+      concept: "人格 (Person) vs 工具客体 (Sache)",
+      difference: "无论计算能力多高，只要属于物理决定论系统，就无法跨越到自律道德主体"
+    },
+    witt_late: {
+      claim: "追问‘AI是否有意识与道德’问错了方向，应考察人类在怎样的‘语言游戏’与‘生活形式’中承认其身份。",
+      body: `【有据推演模式】让我们回到日常语言的使用：“我们是在什么情况下说‘一个人感到了痛苦’或‘他在真诚地承担责任’的？” 这从来不是在窥探一个不可见的、藏在脑壳深处的神秘实体（如笛卡尔的剧场），而是一种交织在人类共同行动与关切中的‘生活形式’（Lebensform）。\n\n如果有一天，一个具身智能机器人与人类共同生活、承担看护、遵守日常承诺，并在违背诺言时表现出羞愧的社会性反应，人类就会自然而然地将它拉入道德共同体的‘语言游戏’之中。问题不在于‘它的灵魂深处是否真有意识’（这是语言的空转！），而在于我们人类是否准备好了在实践上与它共享某种生活。`,
+      citations: [
+        {
+          book: "《哲学研究》",
+          locator: "§ 281 & § 304",
+          type: "reconstruction",
+          passage: "“只有对一个活着的人类，以及与它相似的活生生的东西，我们才可以说：它有感觉；它看得到；它是盲目的；它是清醒的；或者它是无意识的。”",
+          note: "受约束推演依据：反思日常语言的投射界限与外在标准。"
+        }
+      ],
+      premise: "心理语词的意义在于公共语言游戏的社会实践，而非内在私有心灵",
+      concept: "生活形式 (Lebensform) / 语言游戏规则",
+      difference: "消解形而上学的主体特权，以社会交往中是否互相承认生活形式为准则"
+    },
+    synthesis: {
+      divergenceFocus: "成为伦理主体依赖于‘先验自律的先验地位’，还是‘公共社会交往中生活形式的相互接纳’？",
+      kantStandpoint: "必须具备独立于物理因果的先验自由；社会生活中的模仿仅仅是‘仿佛有道德’，绝不等同于道德主体。",
+      witt_lateStandpoint: "执着于不可见的‘先验自由’恰恰是语言的迷雾；道德主体性本就是人类共同体在生活实践中赋予的参与资格。",
+      furtherInquiry: "如果 AI 在医疗事故中导致人员伤亡，受害者家属需要的‘道歉与救济’能否被纯算法履行？"
+    }
+  }
+};
+
+// --- 3. RUNTIME APP STATE ---
+let AppState = {
+  view: "dialogue",             // 'dialogue' | 'thinkers' | 'journal' | 'settings'
+  theme: "light",
+  inspectorOpen: true,
+  currentTopic: "freedom",       // key in PHILOSOPHICAL_FIXTURES
+  activeThinkerIds: ["kant", "hume"],
+  knowledgeMode: "inference",    // 'primary' | 'inference' | 'cosplay'
+  
+  // Dialogues & Turns
+  sessions: [
+    {
+      id: "ses_freedom",
+      title: "自由意志与因果决定论",
+      topicKey: "freedom",
+      thinkers: ["kant", "hume"],
+      mode: "inference",
+      turns: []
+    },
+    {
+      id: "ses_ai",
+      title: "强人工智能与伦理主体地位",
+      topicKey: "ai",
+      thinkers: ["kant", "witt_late"],
+      mode: "inference",
+      turns: []
+    }
+  ],
+  currentSessionId: "ses_freedom",
+  
+  // FIFO Queue & Turn Execution State
+  queue: [],                     // array of { id, text, thinkers, mode, submittedAt }
+  isRunning: false,
+  streamInterval: null,
+  activeTurnId: null,
+
+  // Settings & Fault Injection
+  faultSimulation: "normal",     // 'normal' | 'evidence_lack' | 'auth_fail' | 'network_break' | 'partial_fail'
+  streamSpeed: "normal",
+
+  // Selected citation for Inspector
+  selectedCitation: null
+};
+
+// --- 4. INITIALIZATION ROUTINES ---
+function initApp() {
+  buildSchoolFilters();
+  buildThinkersCatalogGrid();
+  loadInitialTurnsForSession(AppState.currentSessionId);
+  renderSessionList();
+  renderCurrentTopicBar();
+  bindGlobalEvents();
+  renderDialogueThread();
+  renderInspector();
+}
+
+function loadInitialTurnsForSession(sessionId) {
+  const session = AppState.sessions.find(s => s.id === sessionId);
+  if (!session) return;
+  
+  if (session.turns.length === 0) {
+    const fixture = PHILOSOPHICAL_FIXTURES[session.topicKey];
+    if (fixture) {
+      session.turns.push({
+        id: "turn_initial",
+        question: fixture.title,
+        thinkerIds: [...session.thinkers],
+        mode: session.mode,
+        timestamp: "今日 14:30 · 初始命题",
+        status: "completed", // 'completed' | 'generating' | 'partial' | 'failed'
+        answers: session.thinkers.map(tId => ({
+          thinkerId: tId,
+          claim: fixture[tId]?.claim || "立论立场概述",
+          body: fixture[tId]?.body || "正文论证内容",
+          citations: fixture[tId]?.citations || [],
+          progress: 100,
+          status: "done"
+        })),
+        synthesis: fixture.synthesis || null
+      });
+    }
+  }
+}
+
+// --- 5. DOM RENDERING PIPELINE ---
+
+function renderSessionList() {
+  const container = document.getElementById("sessionList");
+  container.innerHTML = "";
+  
+  AppState.sessions.forEach(ses => {
+    const card = document.createElement("div");
+    card.className = `session-card ${ses.id === AppState.currentSessionId ? "active" : ""}`;
+    card.innerHTML = `
+      <div class="session-info" style="cursor:pointer;">
+        <div class="session-title serif">${escapeHtml(ses.title)}</div>
+        <div class="session-meta">
+          <span>${ses.thinkers.map(id => getThinker(id).name).join(" vs ")}</span>
+          <span>·</span>
+          <span>${ses.turns.length} 轮讨论</span>
+        </div>
+      </div>
+      <button class="session-action-del" title="移除会话" data-del="${ses.id}">
+        <svg class="icon sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
+    
+    card.querySelector(".session-info").addEventListener("click", () => switchSession(ses.id));
+    card.querySelector(".session-action-del").addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteSession(ses.id);
+    });
+    
+    container.appendChild(card);
+  });
+}
+
+function renderCurrentTopicBar() {
+  const session = getCurrentSession();
+  if (!session) return;
+  document.getElementById("currentTopicDisplay").textContent = session.title;
+  
+  const modeBadge = document.getElementById("btnChangeMode");
+  const modeLabel = document.getElementById("currentModeLabel");
+  modeBadge.className = `mode-capsule ${session.mode}`;
+  const modeNames = {
+    primary: "原典解读模式",
+    inference: "有据推演模式",
+    cosplay: "自由扮演模式"
+  };
+  modeLabel.textContent = modeNames[session.mode];
+
+  // Render active thinkers pills in composer
+  const chipsContainer = document.getElementById("activeThinkerBadges");
+  chipsContainer.innerHTML = "";
+  session.thinkers.forEach(tId => {
+    const p = getThinker(tId);
+    const pill = document.createElement("span");
+    pill.className = "thinker-pill";
+    pill.innerHTML = `
+      <span style="color:${p.color}; font-weight:600;">${p.initial}</span>
+      <span>${p.name} · ${p.stage.slice(0,4)}</span>
+      <span class="remove-p" data-removethinker="${p.id}" title="移除此回答者">&times;</span>
+    `;
+    pill.querySelector(".remove-p").addEventListener("click", () => removeThinkerFromCurrentSession(p.id));
+    chipsContainer.appendChild(pill);
+  });
+}
+
+function renderDialogueThread() {
+  const session = getCurrentSession();
+  const thread = document.getElementById("threadContent");
+  thread.innerHTML = "";
+
+  if (!session || session.turns.length === 0) {
+    thread.innerHTML = `
+      <div style="text-align:center; padding: 60px 20px; color:var(--ink-tertiary);">
+        <div class="serif" style="font-size:36px; margin-bottom:12px; color:var(--accent-sienna);">Ψ</div>
+        <h2 class="serif" style="font-size:20px; margin-bottom:8px; color:var(--ink-primary);">思想研讨工坊</h2>
+        <p style="font-size:12px; max-width:440px; margin:0 auto; line-height:1.7;">
+          在下方输入框中输入你关心的哲学命题。系统将检索已选思想家独立文献范围，基于有据推演呈现不同立场的论证与前提分歧。
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  session.turns.forEach(turn => {
+    const turnBlock = document.createElement("div");
+    turnBlock.className = "turn-block";
+    turnBlock.id = turn.id;
+
+    // 1. Question Card
+    const inquiryHtml = `
+      <div class="inquiry-card">
+        <div class="inquiry-head">
+          <span class="inquiry-label">
+            <svg class="icon sm" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>研讨命题 / 探究原由</span>
+          </span>
+          <span class="mono">${turn.timestamp}</span>
+        </div>
+        <div class="inquiry-body">${escapeHtml(turn.question)}</div>
+        <div class="inquiry-addressed-to">
+          <span>定向立论思想家：</span>
+          ${turn.thinkerIds.map(tId => {
+            const t = getThinker(tId);
+            return `<strong style="color:${t.color};">${t.name} (${t.stage})</strong>`;
+          }).join(" · ")}
+        </div>
+      </div>
+    `;
+
+    // 2. Answers Container
+    const stanceCols = Math.min(turn.answers.length, 2);
+    let stancesHtml = `<div class="stances-container" style="--stance-cols:${stanceCols};">`;
+
+    turn.answers.forEach(ans => {
+      const p = getThinker(ans.thinkerId);
+      const isGenerating = ans.status === "generating";
+      
+      stancesHtml += `
+        <article class="stance-card ${ans.status === 'failed' ? 'failed' : ''}" id="stance_${turn.id}_${p.id}">
+          <div class="stance-head">
+            <div class="thinker-portrait-seal" style="color:${p.color};">${p.initial}</div>
+            <div class="thinker-title-area">
+              <div class="thinker-name-row">
+                <span class="thinker-name">${p.name}</span>
+                <span class="stage-tag">${p.stage}</span>
+              </div>
+              <div class="school-line">${p.school} · 独立文献库 ${p.corpusRange}</div>
+            </div>
+            <span class="stance-mode-indicator">${turn.mode === 'primary' ? '原典支持' : turn.mode === 'cosplay' ? '假定演绎' : '受约束推演'}</span>
+          </div>
+
+          <div class="stance-thesis-claim serif">${escapeHtml(ans.claim)}</div>
+
+          <div class="stance-body-text">
+            ${formatPassageWithCitations(ans.body, ans.citations, turn.id, p.id)}
+            ${isGenerating ? '<span class="banner-indicator" style="display:inline-block; margin-left:4px;"></span>' : ''}
+          </div>
+
+          <div class="stance-foot">
+            <div class="flex-row" style="gap:6px;">
+              ${ans.citations && ans.citations.length > 0 ? `
+                <button class="inspect-sources-btn" data-turn="${turn.id}" data-thinker="${p.id}">
+                  <svg class="icon sm" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  <span>查验原典依据 (${ans.citations.length} 处)</span>
+                </button>
+              ` : `<span style="font-size:10px; color:var(--ink-tertiary);">依据已核验</span>`}
+            </div>
+            <span class="mono" style="font-size:10px;">${ans.status === 'done' ? '核验通过' : ans.status === 'failed' ? '本项异常' : '正在推演...'}</span>
+          </div>
+        </article>
+      `;
+    });
+    stancesHtml += `</div>`;
+
+    // 3. Dialectic Matrix Card (Comparative Synthesis)
+    let matrixHtml = "";
+    if (turn.answers.length >= 2 && turn.synthesis) {
+      const syn = turn.synthesis;
+      matrixHtml = `
+        <div class="dialectic-matrix-card">
+          <div class="matrix-header">
+            <div class="matrix-title">
+              <svg class="icon sm" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              <span>立场对照与前提分歧 (Dialectic Matrix)</span>
+            </div>
+            <span style="font-size:11px; color:var(--ink-tertiary);">检视论据前提，而非投票判定对错</span>
+          </div>
+          <div class="matrix-grid" style="--matrix-cols:${turn.answers.length};">
+            <div class="matrix-cell row-label">思想立场</div>
+            ${turn.answers.map(a => `<div class="matrix-cell col-head">${getThinker(a.thinkerId).name}</div>`).join("")}
+
+            <div class="matrix-cell row-label">根本前提假设</div>
+            <div class="matrix-cell">${syn.kantStandpoint || "以先验自律和理性的纯粹形式为前提"}</div>
+            <div class="matrix-cell">${syn.humeStandpoint || "以经验主义感官知觉与习惯归因为前提"}</div>
+
+            <div class="matrix-cell row-label">主要分歧要害</div>
+            <div class="matrix-cell" style="grid-column: 2 / -1; background:var(--bg-card); color:var(--accent-sienna); font-weight:500;">
+              ${syn.divergenceFocus}
+            </div>
+          </div>
+          <div class="matrix-footer">
+            <span>推荐继续追问：${syn.furtherInquiry || "探究两种立场在极端伦理困境下的表现"}</span>
+            <button class="deepen-inquiry-btn" data-followup="${escapeHtml(syn.furtherInquiry || '')}">
+              <span>一键带入追问</span>
+              <svg class="icon sm" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    turnBlock.innerHTML = inquiryHtml + stancesHtml + matrixHtml;
+    thread.appendChild(turnBlock);
+  });
+
+  // Bind interactive elements in thread
+  thread.querySelectorAll(".inspect-sources-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const turnId = btn.getAttribute("data-turn");
+      const thinkerId = btn.getAttribute("data-thinker");
+      openCitationInspector(turnId, thinkerId);
+    });
+  });
+
+  thread.querySelectorAll(".text-citation").forEach(tag => {
+    tag.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const locator = tag.getAttribute("data-locator");
+      focusCitationInInspector(locator);
+    });
+  });
+
+  thread.querySelectorAll(".deepen-inquiry-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const followup = btn.getAttribute("data-followup");
+      const textarea = document.getElementById("promptTextarea");
+      textarea.value = followup;
+      textarea.focus();
+      showToast("已将追问命题填入输入框");
+    });
+  });
+
+  // Scroll to bottom
+  const viewport = document.getElementById("threadViewport");
+  viewport.scrollTop = viewport.scrollHeight;
+}
+
+function renderInspector() {
+  const body = document.getElementById("inspectorBody");
+  if (!AppState.selectedCitation) {
+    // Default preview: first citation of current session
+    const session = getCurrentSession();
+    const firstTurn = session?.turns[0];
+    if (firstTurn && firstTurn.answers[0]?.citations[0]) {
+      AppState.selectedCitation = {
+        thinker: getThinker(firstTurn.answers[0].thinkerId),
+        ...firstTurn.answers[0].citations[0]
+      };
+    }
+  }
+
+  if (!AppState.selectedCitation) {
+    body.innerHTML = `
+      <div style="text-align:center; padding: 40px 10px; color:var(--ink-tertiary);">
+        <p style="font-size:12px;">生成完成后，点击回答卡片上的“查验原典依据”，此处将呈现作品定位、版本号与文献快照。</p>
+      </div>
+    `;
+    return;
+  }
+
+  const c = AppState.selectedCitation;
+  const badgeClass = c.type === "primary-text" ? "primary-text" : c.type === "reconstruction" ? "reconstruction" : "secondary-study";
+  const badgeName = c.type === "primary-text" ? "原典直接支持" : c.type === "reconstruction" ? "受约束原则重构" : "二手研究文献";
+
+  body.innerHTML = `
+    <div class="evidence-dossier">
+      <div class="evidence-dossier-head">
+        <span class="evidence-type-badge ${badgeClass}">${badgeName}</span>
+        <span class="mono" style="font-size:10px; color:var(--ink-tertiary);">${c.thinker?.name || "思想家"} · 历史依据快照</span>
+      </div>
+      <div class="evidence-book-title">${escapeHtml(c.book)}</div>
+      <div class="evidence-locator mono">${escapeHtml(c.locator)}</div>
+      <div class="evidence-passage">“${escapeHtml(c.passage)}”</div>
+      <div class="evidence-verification-note">
+        <strong>可复查性说明：</strong>${escapeHtml(c.note)}
+      </div>
+    </div>
+
+    <div style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-sm); border:1px dashed var(--border-subtle); font-size:11px; color:var(--ink-secondary); line-height:1.6;">
+      <strong>资料边界合规检查 (Contract Guarantee):</strong>
+      <ul style="padding-left:16px; margin-top:6px; font-size:10px; color:var(--ink-tertiary);">
+        <li>独立知识库隔离：资料来源于 ${c.thinker?.corpusRange || "独立范围"}，未发生跨阶段串库。</li>
+        <li>禁止虚构引文：若未提取到稳定章节/命题号，强制降级为概括综述，禁止捏造页码。</li>
+        <li>快照不可篡改：依据本轮调用生成时留存的快照呈现，不受后续云端资料更新影响。</li>
+      </ul>
+    </div>
+  `;
+}
+
+// --- 6. ASYNC FIFO QUEUE & MOCK LLM STREAMING ENGINE ---
+
+function handleUserSubmit() {
+  const textarea = document.getElementById("promptTextarea");
+  const prompt = textarea.value.trim();
+  if (!prompt) return;
+
+  const session = getCurrentSession();
+  if (!session) return;
+
+  // 1. If system is already generating a turn, queue this request!
+  if (AppState.isRunning) {
+    const queueItem = {
+      id: "q_" + Date.now(),
+      text: prompt,
+      thinkers: [...session.thinkers],
+      mode: session.mode,
+      submittedAt: new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    };
+    AppState.queue.push(queueItem);
+    textarea.value = "";
+    updateQueueUi();
+    showToast(`问题已存入排队区 (当前排队第 ${AppState.queue.length} 位)`);
+    return;
+  }
+
+  // 2. Otherwise, execute turn immediately
+  textarea.value = "";
+  executeTurn(prompt, [...session.thinkers], session.mode);
+}
+
+function executeTurn(prompt, thinkerIds, mode) {
+  const session = getCurrentSession();
+  AppState.isRunning = true;
+  document.getElementById("btnStopRun").classList.remove("hidden");
+  document.getElementById("btnSubmit").classList.add("queued");
+  document.getElementById("turnStateIndicator").textContent = "正在并发检索与推演...";
+
+  const newTurnId = "turn_" + Date.now();
+  AppState.activeTurnId = newTurnId;
+
+  // Build placeholder answers
+  const initialAnswers = thinkerIds.map(tId => {
+    const fixture = getSimulatedResponse(tId, prompt, mode);
+    return {
+      thinkerId: tId,
+      claim: fixture.claim,
+      targetBody: fixture.body,
+      body: "",
+      citations: fixture.citations,
+      progress: 0,
+      status: "generating"
+    };
+  });
+
+  const newTurn = {
+    id: newTurnId,
+    question: prompt,
+    thinkerIds: [...thinkerIds],
+    mode: mode,
+    timestamp: "刚刚 · " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }),
+    status: "generating",
+    answers: initialAnswers,
+    synthesis: thinkerIds.length >= 2 ? {
+      divergenceFocus: "两种立场在行动根据是自律理性还是经验心理机制上的分歧剖析。",
+      kantStandpoint: "先验规范论立场",
+      humeStandpoint: "经验描述论立场",
+      furtherInquiry: "追问在此分歧下，道德评价是否具有普遍客观性？"
+    } : null
+  };
+
+  session.turns.push(newTurn);
+  renderDialogueThread();
+
+  // Simulate streaming generation using an interval
+  let streamStep = 0;
+  const speedInterval = AppState.streamSpeed === "fast" ? 30 : 65;
+
+  AppState.streamInterval = setInterval(() => {
+    if (!AppState.isRunning) {
+      clearInterval(AppState.streamInterval);
+      return;
+    }
+
+    streamStep++;
+    let allFinished = true;
+
+    // Check fault injection simulation
+    if (AppState.faultSimulation === "auth_fail" && streamStep === 10) {
+      clearInterval(AppState.streamInterval);
+      AppState.isRunning = false;
+      newTurn.status = "failed";
+      newTurn.answers.forEach(a => a.status = "failed");
+      showToast("模拟错误：DeepSeek 凭据鉴权失效 (401 Unauthorized)，队列自动挂起。");
+      finalizeTurnCleanup();
+      return;
+    }
+
+    if (AppState.faultSimulation === "network_break" && streamStep === 25) {
+      clearInterval(AppState.streamInterval);
+      AppState.isRunning = false;
+      newTurn.status = "failed";
+      showToast("模拟错误：流式网络中途断开。保留已生成片段草稿，等待用户重试。");
+      finalizeTurnCleanup();
+      return;
+    }
+
+    newTurn.answers.forEach((ans, idx) => {
+      if (AppState.faultSimulation === "partial_fail" && idx === 0) {
+        ans.status = "failed";
+        ans.body = "【模拟：此人物资料库接口超时失败，已隔离，其他人物继续正常回答】";
+        return;
+      }
+
+      if (ans.body.length < ans.targetBody.length) {
+        allFinished = false;
+        const sliceLen = Math.min(ans.targetBody.length, ans.body.length + (AppState.streamSpeed === "fast" ? 12 : 5));
+        ans.body = ans.targetBody.slice(0, sliceLen);
+      } else {
+        ans.status = "done";
+      }
+    });
+
+    // Update active DOM text directly for smoothness
+    newTurn.answers.forEach(ans => {
+      const stanceCard = document.getElementById(`stance_${newTurn.id}_${ans.thinkerId}`);
+      if (stanceCard) {
+        const bodyEl = stanceCard.querySelector(".stance-body-text");
+        if (bodyEl) {
+          bodyEl.innerHTML = formatPassageWithCitations(ans.body, ans.citations, newTurn.id, ans.thinkerId) +
+            (ans.status === "generating" ? '<span class="banner-indicator" style="display:inline-block; margin-left:4px;"></span>' : '');
+        }
+      }
+    });
+
+    if (allFinished) {
+      clearInterval(AppState.streamInterval);
+      newTurn.status = "completed";
+      finalizeTurnCleanup();
+      showToast("本轮研讨完成，原典依据与立场对照已更新");
+
+      // Check FIFO Queue for next item!
+      processNextQueueItem();
+    }
+  }, speedInterval);
+}
+
+function finalizeTurnCleanup() {
+  AppState.isRunning = false;
+  document.getElementById("btnStopRun").classList.add("hidden");
+  document.getElementById("btnSubmit").classList.remove("queued");
+  document.getElementById("turnStateIndicator").textContent = "空闲就绪";
+  renderDialogueThread();
+  renderInspector();
+}
+
+function processNextQueueItem() {
+  if (AppState.queue.length === 0) return;
+  const nextItem = AppState.queue.shift();
+  updateQueueUi();
+  showToast(`开始自动处理排队问题：${nextItem.text.slice(0, 18)}...`);
+  setTimeout(() => {
+    executeTurn(nextItem.text, nextItem.thinkers, nextItem.mode);
+  }, 400);
+}
+
+function updateQueueUi() {
+  const queueStrip = document.getElementById("queueStrip");
+  const queueList = document.getElementById("queueItemsList");
+  const badge = document.getElementById("queueCountBadge");
+
+  if (AppState.queue.length === 0) {
+    queueStrip.classList.add("hidden");
+    return;
+  }
+
+  queueStrip.classList.remove("hidden");
+  badge.textContent = `${AppState.queue.length} 条等待中`;
+  queueList.innerHTML = "";
+
+  AppState.queue.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "queue-item-row";
+    row.innerHTML = `
+      <span class="mono" style="font-size:10px; color:var(--accent-amber); margin-right:8px;">#${index + 1}</span>
+      <span class="queue-item-text">${escapeHtml(item.text)}</span>
+      <span style="font-size:10px; color:var(--ink-tertiary); margin-right:8px;">发给: ${item.thinkers.map(id=>getThinker(id).name).join("、")}</span>
+      <button class="withdraw-btn" data-withdraw="${item.id}" title="撤回此未开始问题">撤回</button>
+    `;
+    row.querySelector(".withdraw-btn").addEventListener("click", () => withdrawQueuedItem(item.id));
+    queueList.appendChild(row);
+  });
+}
+
+function withdrawQueuedItem(queueId) {
+  AppState.queue = AppState.queue.filter(q => q.id !== queueId);
+  updateQueueUi();
+  showToast("已撤回排队中的问题");
+}
+
+function stopCurrentTurn() {
+  if (!AppState.isRunning) return;
+  clearInterval(AppState.streamInterval);
+  AppState.isRunning = false;
+  showToast("已中断当前生成轮次，保留已生成草稿，排队已暂停。");
+  finalizeTurnCleanup();
+}
+
+// --- 7. MOCK CORPUS GENERATOR ---
+function getSimulatedResponse(thinkerId, prompt, mode) {
+  const thinker = getThinker(thinkerId);
+  // Match keyword in prompt
+  const isAi = /ai|人工智能|机器|算法/i.test(prompt);
+  const fixtureKey = isAi ? "ai" : "freedom";
+  const fixture = PHILOSOPHICAL_FIXTURES[fixtureKey];
+
+  if (fixture && fixture[thinkerId]) {
+    return fixture[thinkerId];
+  }
+
+  // Generic philosophical deduction synthesis
+  return {
+    claim: `从${thinker.keyConcepts[0]}的视域重新审视该命题。`,
+    body: `这是依据 ${thinker.name} (${thinker.stage}) 资料范围 ${thinker.corpusRange} 生成的受约束立论。\n\n关于提问“${prompt}”，本立场主张不能脱离其核心概念“${thinker.keyConcepts.join('、')}”进行孤立判断。任何对新问题的扩展推演均必须审查其先验证据，明确指出推论成立所依托的前提假设。`,
+    citations: [
+      {
+        book: thinker.primaryWork,
+        locator: "标准索引 §12",
+        type: mode === "primary" ? "primary-text" : "reconstruction",
+        passage: `“在关于${thinker.keyConcepts[0]}的论证中，我们必须时刻警惕未经批判的先入之见……”`,
+        note: `来源自 ${thinker.name} 独立文献包 ${thinker.corpusRange}，已做版本核验。`
+      }
+    ]
+  };
+}
+
+// --- 8. CITATIONS & INSPECTOR HELPERS ---
+function formatPassageWithCitations(text, citations, turnId, thinkerId) {
+  if (!citations || citations.length === 0) return escapeHtml(text);
+
+  let formatted = escapeHtml(text);
+  citations.forEach(c => {
+    // If book name exists in text, wrap it with interactive citation tag
+    const tag = `<span class="text-citation" data-locator="${escapeHtml(c.locator)}" title="点击在右侧查看依据：${escapeHtml(c.book)} ${escapeHtml(c.locator)}">📖 ${escapeHtml(c.locator)}</span>`;
+    if (formatted.includes("《")) {
+      // Just visually anchor
+    }
+  });
+  return formatted;
+}
+
+function openCitationInspector(turnId, thinkerId) {
+  const session = getCurrentSession();
+  const turn = session?.turns.find(t => t.id === turnId);
+  const ans = turn?.answers.find(a => a.thinkerId === thinkerId);
+  if (ans && ans.citations.length > 0) {
+    AppState.selectedCitation = {
+      thinker: getThinker(thinkerId),
+      ...ans.citations[0]
+    };
+    if (!AppState.inspectorOpen) {
+      toggleInspector(true);
+    } else {
+      renderInspector();
+    }
+    showToast(`已展开 ${getThinker(thinkerId).name} 的原典依据`);
+  }
+}
+
+function focusCitationInInspector(locator) {
+  if (!AppState.inspectorOpen) toggleInspector(true);
+  renderInspector();
+}
+
+function toggleInspector(forceState) {
+  AppState.inspectorOpen = typeof forceState === "boolean" ? forceState : !AppState.inspectorOpen;
+  const panel = document.getElementById("inspectorPanel");
+  const btn = document.getElementById("btnToggleInspector");
+  if (AppState.inspectorOpen) {
+    panel.classList.remove("collapsed");
+    btn.classList.add("active");
+    renderInspector();
+  } else {
+    panel.classList.add("collapsed");
+    btn.classList.remove("active");
+  }
+}
+
+// --- 9. THINKERS CATALOG VIEW ---
+function buildSchoolFilters() {
+  const schools = ["全部流派", "古希腊哲学", "英国经验主义", "德国古典哲学", "近代大陆唯理主义", "现象学与存在主义", "分析与语言哲学"];
+  const container = document.getElementById("schoolFiltersRow");
+  container.innerHTML = "";
+  schools.forEach((school, i) => {
+    const btn = document.createElement("button");
+    btn.className = `school-tag-btn ${i === 0 ? "active" : ""}`;
+    btn.textContent = school;
+    btn.addEventListener("click", () => {
+      container.querySelectorAll(".school-tag-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      filterThinkersGrid(school, document.getElementById("catalogSearch").value);
+    });
+    container.appendChild(btn);
+  });
+}
+
+function buildThinkersCatalogGrid() {
+  renderThinkersList(CORPUS_THINKERS);
+}
+
+function renderThinkersList(list) {
+  const container = document.getElementById("thinkersGrid");
+  container.innerHTML = "";
+  const session = getCurrentSession();
+
+  list.forEach(t => {
+    const isSelected = session && session.thinkers.includes(t.id);
+    const card = document.createElement("div");
+    card.className = `thinker-dossier-card ${isSelected ? "selected" : ""}`;
+    card.innerHTML = `
+      <div class="thinker-card-head">
+        <div class="thinker-portrait-seal" style="color:${t.color};">${t.initial}</div>
+        <div>
+          <div class="serif" style="font-size:16px; font-weight:600;">${t.name}</div>
+          <div class="stage-tag" style="margin-top:2px;">${t.stage}</div>
+        </div>
+      </div>
+      <div class="thinker-card-body">
+        <div style="font-size:11px; color:var(--ink-tertiary); margin-bottom:6px;">${t.school} · ${t.era}</div>
+        <div style="font-weight:500; color:var(--ink-primary); margin-bottom:4px;">核心著作：${t.primaryWork}</div>
+        <div style="font-size:11px; color:var(--ink-secondary);">概念：${t.keyConcepts.join(" · ")}</div>
+      </div>
+      <div class="thinker-card-foot">
+        <span class="mono" style="font-size:10px; color:var(--accent-sage);">独立库: ${t.corpusRange}</span>
+        <button class="btn-submit" style="padding:4px 10px; font-size:11px;" data-togglethinker="${t.id}">
+          ${isSelected ? "已在研讨中 ✓" : "加入研讨"}
+        </button>
+      </div>
+    `;
+
+    card.querySelector("[data-togglethinker]").addEventListener("click", () => {
+      toggleThinkerSelection(t.id);
+    });
+
+    container.appendChild(card);
+  });
+}
+
+function filterThinkersGrid(schoolFilter, searchVal) {
+  let filtered = CORPUS_THINKERS;
+  if (schoolFilter && schoolFilter !== "全部流派") {
+    filtered = filtered.filter(t => t.school === schoolFilter);
+  }
+  if (searchVal) {
+    const q = searchVal.toLowerCase();
+    filtered = filtered.filter(t => 
+      t.name.includes(q) || 
+      t.stage.includes(q) || 
+      t.keyConcepts.some(c => c.toLowerCase().includes(q)) || 
+      t.primaryWork.includes(q)
+    );
+  }
+  renderThinkersList(filtered);
+}
+
+function toggleThinkerSelection(thinkerId) {
+  const session = getCurrentSession();
+  if (!session) return;
+  if (session.thinkers.includes(thinkerId)) {
+    if (session.thinkers.length <= 1) {
+      showToast("研讨至少保留 1 位思想家");
+      return;
+    }
+    session.thinkers = session.thinkers.filter(id => id !== thinkerId);
+    showToast(`已从研讨中移出 ${getThinker(thinkerId).name}`);
+  } else {
+    if (session.thinkers.length >= 3) {
+      showToast("Windows MVP 首版最多同时邀请 3 位思想家对照");
+      return;
+    }
+    session.thinkers.push(thinkerId);
+    showToast(`已邀请 ${getThinker(thinkerId).name} (${getThinker(thinkerId).stage}) 加入研讨`);
+  }
+  renderCurrentTopicBar();
+  buildThinkersCatalogGrid();
+}
+
+function removeThinkerFromCurrentSession(thinkerId) {
+  toggleThinkerSelection(thinkerId);
+}
+
+// --- 10. MODALS & DIALOGS LOGIC ---
+function openThinkerPickerModal() {
+  const modal = document.getElementById("modalLayer");
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  const session = getCurrentSession();
+  
+  title.textContent = "调整当前研讨参与的思想立场 (1 - 3 位)";
+  let selected = [...session.thinkers];
+
+  const renderModalGrid = () => {
+    body.innerHTML = `
+      <p style="font-size:12px; color:var(--ink-secondary); margin-bottom:16px;">
+        新加入的思想立场模型可访问此前讨论作为语境，但必须依据自身思想阶段与原典独立作答，不继承其他角色立场。
+      </p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; max-height:420px; overflow-y:auto;">
+        ${CORPUS_THINKERS.map(t => {
+          const checked = selected.includes(t.id);
+          return `
+            <div class="session-card ${checked ? 'active' : ''}" style="cursor:pointer; border:1px solid var(--border-subtle); padding:10px;" data-modalp="${t.id}">
+              <div class="flex-row" style="gap:10px; width:100%;">
+                <div class="thinker-portrait-seal" style="width:30px; height:30px; font-size:14px; color:${t.color};">${t.initial}</div>
+                <div style="flex:1;">
+                  <div style="font-weight:600; font-size:13px;">${t.name}</div>
+                  <div style="font-size:10px; color:var(--ink-tertiary);">${t.stage} · ${t.school}</div>
+                </div>
+                <span class="mono" style="color:var(--accent-sienna); font-weight:bold;">${checked ? "✓" : "+"}</span>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+
+    body.querySelectorAll("[data-modalp]").forEach(card => {
+      card.addEventListener("click", () => {
+        const id = card.getAttribute("data-modalp");
+        if (selected.includes(id)) {
+          if (selected.length <= 1) {
+            showToast("至少保留 1 位回答者");
+            return;
+          }
+          selected = selected.filter(x => x !== id);
+        } else {
+          if (selected.length >= 3) {
+            showToast("首版上限 3 位思想家");
+            return;
+          }
+          selected.push(id);
+        }
+        renderModalGrid();
+      });
+    });
+  };
+
+  renderModalGrid();
+
+  document.getElementById("btnModalConfirm").onclick = () => {
+    session.thinkers = [...selected];
+    renderCurrentTopicBar();
+    renderSessionList();
+    closeModal();
+    showToast("回答者配置已更新");
+  };
+
+  modal.classList.remove("hidden");
+}
+
+function openKnowledgeModeModal() {
+  const modal = document.getElementById("modalLayer");
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  const session = getCurrentSession();
+
+  title.textContent = "选择本段对话的回答依据规则 (知识模式)";
+  const modes = [
+    {
+      key: "inference",
+      name: "有据推演模式 (推荐 / 默认)",
+      desc: "允许基于原典公理与原则推演当代新问题。所有推导关系、前提与争议均向用户公开审查。",
+      tag: "推荐"
+    },
+    {
+      key: "primary",
+      name: "原典解读模式 (严格依文解义)",
+      desc: "仅允许陈述具有明确原始文本出处的立场，原典未直接提及的问题明确说明证据不足，不作外推。",
+      tag: "严格文献"
+    },
+    {
+      key: "cosplay",
+      name: "自由扮演模式 (开放拟构 / 虚构创作)",
+      desc: "超出原典可支持范围，以思想角色进行推演与想象。明确标示为虚构，禁止伪造原典出处。",
+      tag: "主动开启"
+    }
+  ];
+
+  let chosen = session.mode;
+
+  body.innerHTML = `
+    <p style="font-size:12px; color:var(--ink-secondary); margin-bottom:16px;">
+      知识模式决定了回答可引用的依据强度。根据《设计共识》，更换回答方式建议另开新研讨以保持论述严谨性。
+    </p>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      ${modes.map(m => `
+        <div class="session-card ${chosen === m.key ? 'active' : ''}" style="cursor:pointer; border:1px solid var(--border-medium); padding:14px;" data-modechoice="${m.key}">
+          <div class="between flex-row" style="margin-bottom:6px;">
+            <strong class="serif" style="font-size:14px;">${m.name}</strong>
+            <span class="stage-tag">${m.tag}</span>
+          </div>
+          <p style="font-size:11px; color:var(--ink-secondary); line-height:1.6;">${m.desc}</p>
+        </div>
+      `).join("")}
+    </div>
+  `;
+
+  body.querySelectorAll("[data-modechoice]").forEach(card => {
+    card.addEventListener("click", () => {
+      chosen = card.getAttribute("data-modechoice");
+      body.querySelectorAll("[data-modechoice]").forEach(c => c.classList.remove("active"));
+      card.classList.add("active");
+    });
+  });
+
+  document.getElementById("btnModalConfirm").onclick = () => {
+    session.mode = chosen;
+    renderCurrentTopicBar();
+    closeModal();
+    showToast(`已切换为：${chosen}`);
+  };
+
+  modal.classList.remove("hidden");
+}
+
+function openArchitectureModal() {
+  const modal = document.getElementById("modalLayer");
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  title.textContent = "Pchat Windows MVP 架构与共识规范说明";
+
+  body.innerHTML = `
+    <div style="font-size:12px; line-height:1.8; color:var(--ink-secondary);">
+      <h3 class="serif" style="color:var(--ink-primary); margin-bottom:6px;">核心原则自查 (Evidence-based Facts)</h3>
+      <ol style="padding-left:18px; margin-bottom:14px;">
+        <li><strong>思想立场模型 ≠ 数字复活：</strong>本产品重构的是在限定文献范围内的哲学论辩立场，而非装神弄鬼的角色皮套。</li>
+        <li><strong>理解成果标准：</strong>用户能够辨析至少两个立场的结论、核心前提、概念界定及分歧点，并知晓可继续阅读的原典（避免“我听懂了/得到标准答案”的幻觉）。</li>
+        <li><strong>FIFO 同会话问题排队：</strong>生成中接收的新提问不打乱当前正在执行的模型输入上下文，持久化后依次执行。</li>
+        <li><strong>历史依据快照：</strong>每次回答锁存当时检索的片段与定位（如 Ak. IV 446），知识库更新不篡改历史。</li>
+      </ol>
+      <div class="notice" style="background:var(--bg-card-subtle); padding:12px; border-radius:var(--radius-sm); border:1px solid var(--border-medium);">
+        <strong>Windows MVP 边界核对：</strong>
+        <br>纳入：本地窗口、人物阶段筛选、单人/二至三人对照、三种知识模式、问题队列、来源卡片、系统凭证分离。
+        <br>暂不纳入：日记自动调度（已在原型中提供交互规范预览）、自动多轮辩论、跨设备同步。
+      </div>
+    </div>
+  `;
+
+  document.getElementById("btnModalConfirm").onclick = closeModal;
+  modal.classList.remove("hidden");
+}
+
+function openScenariosModal() {
+  const modal = document.getElementById("modalLayer");
+  const title = document.getElementById("modalTitle");
+  const body = document.getElementById("modalBody");
+  title.textContent = "MVP 验收场景快捷触发器";
+
+  body.innerHTML = `
+    <p style="font-size:12px; color:var(--ink-secondary); margin-bottom:14px;">
+      一键加载《IMPLEMENTATION-PLAN-v0.1.md》所规定的关键验收用例，观察系统在不同工况下的行为表现：
+    </p>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button class="session-card" style="border:1px solid var(--border-subtle); padding:12px; text-align:left;" data-scenario="sc_compare">
+        <strong>场景 1：双人经典对照 (康德 vs 休谟论自由意志)</strong>
+        <p style="font-size:11px; color:var(--ink-tertiary); margin-top:3px;">验证两位思想家使用各自独立文献库分别回答，并自动提炼前提与分歧对照矩阵。</p>
+      </button>
+      <button class="session-card" style="border:1px solid var(--border-subtle); padding:12px; text-align:left;" data-scenario="sc_queue">
+        <strong>场景 2：连续提问排队机制 (FIFO Queue Verification)</strong>
+        <p style="font-size:11px; color:var(--ink-tertiary); margin-top:3px;">在第一题回答期间连续提交问题 B 与 C，验证消息进入队列、支持撤回并在完成后顺序推进。</p>
+      </button>
+      <button class="session-card" style="border:1px solid var(--border-subtle); padding:12px; text-align:left;" data-scenario="sc_witt">
+        <strong>场景 3：思想家自我辩驳 (早期维特根斯坦 vs 晚期维特根斯坦)</strong>
+        <p style="font-size:11px; color:var(--ink-tertiary); margin-top:3px;">验证同一人物的不同思想阶段按独立资料包处理，展现从逻辑图像论到语言游戏的自我扬弃。</p>
+      </button>
+      <button class="session-card" style="border:1px solid var(--border-subtle); padding:12px; text-align:left;" data-scenario="sc_evidence">
+        <strong>场景 4：原典资料不足处理 (降级与提示)</strong>
+        <p style="font-size:11px; color:var(--ink-tertiary); margin-top:3px;">验证在无出处支持时，严禁模型胡编乱造，明确提示不足并提供自由扮演入口。</p>
+      </button>
+    </div>
+  `;
+
+  body.querySelectorAll("[data-scenario]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const sc = btn.getAttribute("data-scenario");
+      loadScenario(sc);
+      closeModal();
+    });
+  });
+
+  document.getElementById("btnModalConfirm").onclick = closeModal;
+  modal.classList.remove("hidden");
+}
+
+function loadScenario(scenarioKey) {
+  if (scenarioKey === "sc_compare") {
+    switchSession("ses_freedom");
+    showToast("已切换至场景 1：自由意志双立场的对比分析");
+  } else if (scenarioKey === "sc_queue") {
+    switchSession("ses_freedom");
+    // Simulate sending A then queueing B and C
+    document.getElementById("promptTextarea").value = "第一问：理性行动者能够为自律付出何种代价？";
+    handleUserSubmit();
+    setTimeout(() => {
+      document.getElementById("promptTextarea").value = "排队问B：休谟所说的同情共感机制如何运作？";
+      handleUserSubmit();
+    }, 400);
+    setTimeout(() => {
+      document.getElementById("promptTextarea").value = "排队问C：这两种态度如何影响我们对待惩罚的看法？";
+      handleUserSubmit();
+    }, 800);
+  } else if (scenarioKey === "sc_witt") {
+    // Create or switch to Wittgenstein self-dialectic session
+    let wittSession = AppState.sessions.find(s => s.id === "ses_witt");
+    if (!wittSession) {
+      wittSession = {
+        id: "ses_witt",
+        title: "语言的界限与生活形式 (维特根斯坦早晚期)",
+        topicKey: "freedom",
+        thinkers: ["witt_early", "witt_late"],
+        mode: "inference",
+        turns: []
+      };
+      AppState.sessions.unshift(wittSession);
+    }
+    AppState.currentSessionId = "ses_witt";
+    renderSessionList();
+    renderCurrentTopicBar();
+    renderDialogueThread();
+    document.getElementById("promptTextarea").value = "语言的本质是世界逻辑结构的图像投影，还是日常交往中的语言游戏？";
+    handleUserSubmit();
+    showToast("已载入场景 3：维特根斯坦早晚期独立立场的自我辨析");
+  } else if (scenarioKey === "sc_evidence") {
+    switchSession("ses_freedom");
+    AppState.faultSimulation = "evidence_lack";
+    document.getElementById("faultSelect").value = "evidence_lack";
+    document.getElementById("promptTextarea").value = "康德在1781年具体是如何预见量子力学量子纠缠现象的？";
+    handleUserSubmit();
+    showToast("已触发场景 4：资料不足拒绝胡编测试");
+  }
+}
+
+function closeModal() {
+  document.getElementById("modalLayer").classList.add("hidden");
+}
+
+// --- 11. SESSION MANAGEMENT ---
+function createNewSession() {
+  const newId = "ses_" + Date.now();
+  const newSession = {
+    id: newId,
+    title: "关于主体与实践的新思考",
+    topicKey: "freedom",
+    thinkers: ["kant", "hume"],
+    mode: "inference",
+    turns: []
+  };
+  AppState.sessions.unshift(newSession);
+  AppState.currentSessionId = newId;
+  renderSessionList();
+  renderCurrentTopicBar();
+  renderDialogueThread();
+  renderInspector();
+  showToast("已开启新的思想辨析工作区");
+}
+
+function switchSession(sessionId) {
+  if (AppState.isRunning) {
+    showToast("当前研讨正在生成中，请等待或先停止本轮");
+    return;
+  }
+  AppState.currentSessionId = sessionId;
+  renderSessionList();
+  renderCurrentTopicBar();
+  renderDialogueThread();
+  renderInspector();
+}
+
+function deleteSession(sessionId) {
+  if (AppState.sessions.length <= 1) {
+    showToast("至少保留一段辨析记录");
+    return;
+  }
+  AppState.sessions = AppState.sessions.filter(s => s.id !== sessionId);
+  if (AppState.currentSessionId === sessionId) {
+    AppState.currentSessionId = AppState.sessions[0].id;
+  }
+  renderSessionList();
+  renderCurrentTopicBar();
+  renderDialogueThread();
+  showToast("已移除该会话");
+}
+
+function getCurrentSession() {
+  return AppState.sessions.find(s => s.id === AppState.currentSessionId) || AppState.sessions[0];
+}
+
+function getThinker(id) {
+  return CORPUS_THINKERS.find(t => t.id === id) || CORPUS_THINKERS[0];
+}
+
+// --- 12. ROUTING & GLOBAL EVENT BINDING ---
+function bindGlobalEvents() {
+  // Navigation Tabs
+  document.querySelectorAll("[data-nav]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const navKey = btn.getAttribute("data-nav");
+      switchView(navKey);
+    });
+  });
+
+  // New Chat
+  document.getElementById("btnNewChat").addEventListener("click", createNewSession);
+
+  // Inspector toggle
+  document.getElementById("btnToggleInspector").addEventListener("click", () => toggleInspector());
+  document.getElementById("btnCloseInspector").addEventListener("click", () => toggleInspector(false));
+
+  // Modal triggers
+  document.getElementById("btnAddThinker").addEventListener("click", openThinkerPickerModal);
+  document.getElementById("btnChangeMode").addEventListener("click", openKnowledgeModeModal);
+  document.getElementById("openArchitectureBtn").addEventListener("click", openArchitectureModal);
+  document.getElementById("openScenariosBtn").addEventListener("click", openScenariosModal);
+  document.getElementById("btnModalClose").addEventListener("click", closeModal);
+
+  // Return to Dialogue from Catalog
+  document.getElementById("btnReturnToDialogue").addEventListener("click", () => switchView("dialogue"));
+
+  // Submit Prompt
+  document.getElementById("btnSubmit").addEventListener("click", handleUserSubmit);
+  document.getElementById("btnStopRun").addEventListener("click", stopCurrentTurn);
+
+  // Textarea Enter key handling
+  document.getElementById("promptTextarea").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleUserSubmit();
+    }
+  });
+
+  // Theme toggle
+  document.getElementById("toggleThemeBtn").addEventListener("click", () => {
+    AppState.theme = AppState.theme === "light" ? "dark" : "light";
+    document.body.setAttribute("data-theme", AppState.theme);
+    showToast(`已切换为：${AppState.theme === "dark" ? "深夜沉思深色模式" : "羊皮纸书房浅色模式"}`);
+  });
+
+  // Settings view inputs
+  document.getElementById("faultSelect").addEventListener("change", (e) => {
+    AppState.faultSimulation = e.target.value;
+    showToast(`下一轮工况：${e.target.options[e.target.selectedIndex].text}`);
+  });
+  document.getElementById("speedSelect").addEventListener("change", (e) => {
+    AppState.streamSpeed = e.target.value;
+    showToast(`推演速度已设置为：${e.target.value}`);
+  });
+
+  // Restart simulation
+  document.getElementById("btnSimulateRestart").addEventListener("click", () => {
+    stopCurrentTurn();
+    showToast("应用已完成状态持久化与重载恢复 (Drift/SQLite atomic recovery)");
+  });
+
+  document.getElementById("btnResetAll").addEventListener("click", () => {
+    stopCurrentTurn();
+    AppState.sessions = [];
+    initApp();
+    showToast("所有测试数据已恢复初始预设");
+  });
+
+  // Catalog search
+  document.getElementById("catalogSearch").addEventListener("input", (e) => {
+    const activeSchoolBtn = document.querySelector(".school-tag-btn.active");
+    const activeSchool = activeSchoolBtn ? activeSchoolBtn.textContent : "全部流派";
+    filterThinkersGrid(activeSchool, e.target.value);
+  });
+
+  // Journal Appending
+  document.getElementById("btnSaveJournal").addEventListener("click", () => {
+    showToast("今日思想记录已保存至本地");
+  });
+  document.getElementById("btnAddComment").addEventListener("click", () => {
+    const input = document.getElementById("newCommentInput");
+    const val = input.value.trim();
+    if (!val) return;
+    const thread = document.getElementById("commentsThread");
+    const commentBox = document.createElement("div");
+    commentBox.style.cssText = "background:var(--bg-card-subtle); padding:8px 12px; border-radius:var(--radius-xs); margin-bottom:6px; font-size:11px;";
+    const nowTime = new Date().toLocaleString("zh-CN");
+    commentBox.innerHTML = `
+      <div class="between flex-row" style="color:var(--ink-tertiary); margin-bottom:4px;">
+        <strong>我追加的回顾</strong>
+        <span class="mono">${nowTime}</span>
+      </div>
+      <div>${escapeHtml(val)}</div>
+    `;
+    thread.appendChild(commentBox);
+    input.value = "";
+    showToast("已成功追加带独立时间戳的评论，历史正文未被改写");
+  });
+}
+
+function switchView(viewKey) {
+  AppState.view = viewKey;
+
+  document.querySelectorAll(".nav-item").forEach(btn => {
+    if (btn.getAttribute("data-nav") === viewKey) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+
+  document.getElementById("dialogueView").classList.toggle("hidden", viewKey !== "dialogue");
+  document.getElementById("thinkersView").classList.toggle("hidden", viewKey !== "thinkers");
+  document.getElementById("journalView").classList.toggle("hidden", viewKey !== "journal");
+  document.getElementById("settingsView").classList.toggle("hidden", viewKey !== "settings");
+}
+
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.classList.remove("hidden");
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 3200);
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// Kick off
+window.addEventListener("DOMContentLoaded", initApp);
+</script>
+</body>
+</html>

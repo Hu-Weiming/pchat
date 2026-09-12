@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Minimal permissions for the P0 diagnostic window",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
+

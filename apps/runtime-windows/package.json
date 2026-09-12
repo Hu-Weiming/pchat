@@ -1,0 +1,20 @@
+{
+  "name": "@pchat/runtime-windows",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/main.mjs",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pchat/contracts": "workspace:*",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}
+

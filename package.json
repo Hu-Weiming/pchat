@@ -1,0 +1,14 @@
+{
+  "name": "pchat",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "check": "pnpm -r --if-present check",
+    "p0:runtime:build": "pnpm --filter @pchat/runtime-windows build",
+    "p0:runtime:prepare-sidecar": "node scripts/prepare-runtime-sidecar.mjs",
+    "p0:desktop:dev": "pnpm p0:runtime:build && pnpm --filter @pchat/desktop tauri dev",
+    "p0:desktop:build": "pnpm p0:runtime:build && pnpm p0:runtime:prepare-sidecar && pnpm --filter @pchat/desktop tauri build"
+  }
+}

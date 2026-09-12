@@ -1,0 +1,1 @@
+{"main-capability":{"identifier":"main-capability","description":"Minimal permissions for the P0 diagnostic window","local":true,"windows":["main"],"permissions":["core:default"]}}
