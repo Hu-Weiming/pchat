@@ -25,8 +25,8 @@
 | 事件书签、依赖和跨端检查 | 已完成 | AST 23 项；无平台全局完整闭环；事件8项覆盖丢失窗口、并发读取、退订和错误清理 |
 | P1 完整验收 | 已完成 | pnpm check:p1：14 文件、137 测试，业务/测试类型、依赖和无平台闭环全部通过；独立审计发现两处问题，修复后回归通过 |
 | P2–P5 优化 | 已完成 | 多人物工程前移 P3，千帆与安装工程收口 P5；真实内容评测保留独立门槛 |
-| P2 SQLite Store | 进行中 | node:sqlite 核验完成；SQLite关/重开、完整Harness与幂等2项通过，继续事务/迁移/独占/真实进程退出 |
-| P3 client 契约 | 进行中 | 12项测试通过，协议校验、传输编号与业务幂等、书签/缺口和挂起退订；继续宿主衔接 |
+| P2 SQLite Store | 进行中 | SQLite12项与包类型通过：持久状态、事务/通知、独占所有者、WAL在线备份、迁移及失败拒绝；继续真实进程中断/FIFO/停止 |
+| P3 client 契约 | 进行中 | 14项测试通过，协议/输入/投影校验、幂等与相关性、书签/缺口、挂起退订；无平台VM通过client实际闭环；继续宿主衔接 |
 | P3 多人物与上下文、P4 UI、P5 接入和安装 | 待实施 | 依优化计划持续推进 |
 
 ## TDD 记录
@@ -51,6 +51,8 @@
 
 - 2026-09-14：独立审计补 PREPARED 写入回滚预算释放（RAG/MODEL两项）与 FICTION 非法引用一项，均经过红→绿；P1 137项完整门禁通过。
 
+- Client 14项（逐步红→绿）：独立 requestId 重试同一 commandId、输入/响应校验、错误脱敏、事件连续性、退订和调用者输入快照。依赖检查扩展client新增10项负例，当前纯核心测试147项通过，另14项client测试通过。
+
 ## 本地环境
 
 所有安装、测试和检查前在当前命令中加载仓库外的本地环境配置。TEMP/TMP、npm/pnpm 缓存、pnpm virtual store、Node 编译缓存与输出根目录都在用户指定 D 盘开发根目录。机器绝对路径不加入共享工具配置。测试工具通过 `PCHAT_DEV_ROOT` 派生缓存、覆盖率和构建输出路径。
@@ -67,6 +69,9 @@
 4. `feat(harness): enforce queue recovery and evidence policies`：停止/恢复、幂等与非法转换、事件清理、证据模式、配置及预算边界。
 
 5. `df0388a fix(harness): fence cancelled and uncertain external attempts`：同步撤销外发权限、持久化失败停机、未发尝试释放预算与引用完整性；137项P1门禁通过。
+
+6. `a59806b docs: align delivery plan with Windows product acceptance`：统一进度入口并同步P2–P5交付计划。
+7. `feat(client): add validated portable harness transport`：版本化通信、client与InProcessTransport、事件生命周期、client跨端门禁。
 
 ## 待后续阶段验证的风险
 

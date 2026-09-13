@@ -1,0 +1,9 @@
+{
+  "name": "@pchat/client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": { "check": "tsc --noEmit" },
+  "dependencies": { "@pchat/contracts": "workspace:*" }
+}

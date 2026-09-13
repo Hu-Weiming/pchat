@@ -88,7 +88,7 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.m
       console.log("Portable runner controls passed: platform globals and unfinished workflows are rejected.");
     } else {
       await checkPortableHarness();
-      console.log("Portable Harness check passed: ECMAScript-only single-role turn and runner controls.");
+      console.log("Portable Harness check passed: ECMAScript-only client turn, bookmark replay and runner controls.");
     }
   } catch (error) {
     console.error(`Portable Harness check failed: ${error.message}`);

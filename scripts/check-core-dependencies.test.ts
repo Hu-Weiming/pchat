@@ -17,7 +17,7 @@ async function fixture() {
   await mkdir(fixtureParent, { recursive: true });
   const root = await mkdtemp(join(fixtureParent, "fixture-"));
   fixtures.push(root);
-  for (const name of ["contracts", "harness"]) {
+  for (const name of ["contracts", "harness", "client"]) {
     const directory = join(root, "packages", name);
     await mkdir(join(directory, "src"), { recursive: true });
     await writeFile(join(directory, "package.json"), JSON.stringify({
@@ -52,6 +52,7 @@ describe("core dependency boundary", () => {
       export const example = 'require("react")';
       export type Command = HarnessCommand;
     `);
+    await writeFile(join(root, "packages", "client", "src", "index.ts"), 'export type { HarnessCommand } from "@pchat/contracts";');
     expect(await checkCoreDependencies(root)).toEqual([]);
   });
 
@@ -68,6 +69,15 @@ describe("core dependency boundary", () => {
     await writeFile(join(root, "packages", "harness", "src", "index.ts"), source);
     const errors = await checkCoreDependencies(root);
     expect(errors.some((error) => error.code === "SOURCE_DEPENDENCY" && error.message.includes(rejected))).toBe(true);
+  });
+
+  it.each(["@pchat/harness", "react", "node:fs", "@tauri-apps/api"])("rejects a client import outside its contracts boundary: %s", async (dependency) => {
+    const root = await fixture();
+    const file = join(root, "packages", "client", "src", "index.ts");
+    await writeFile(file, `import "${dependency}";`);
+    expect(await checkCoreDependencies(root)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ file, code: "SOURCE_DEPENDENCY", message: expect.stringContaining(dependency) }),
+    ]));
   });
 
   it("reports an absent required core package instead of silently passing", async () => {
@@ -90,6 +100,15 @@ describe("core dependency boundary", () => {
     },
   );
 
+  it.each(["dependencies", "peerDependencies", "optionalDependencies"])("rejects client access to the harness implementation through %s", async (field) => {
+    const root = await fixture();
+    const file = join(root, "packages", "client", "package.json");
+    await writeFile(file, JSON.stringify({ name: "@pchat/client", [field]: { "@pchat/harness": "workspace:*" } }));
+    expect(await checkCoreDependencies(root)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ file, code: "PACKAGE_DEPENDENCY" }),
+    ]));
+  });
+
   it.each([
     { lib: ["ES2023", "DOM"], types: [] },
     { lib: ["ES2023"], types: ["node"] },
@@ -99,6 +118,19 @@ describe("core dependency boundary", () => {
     await writeFile(join(root, "packages", "harness", "tsconfig.json"), JSON.stringify({ compilerOptions, include: ["src"] }));
     expect(await checkCoreDependencies(root)).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "COMPILER_BOUNDARY" }),
+    ]));
+  });
+
+  it.each([
+    { lib: ["ES2023", "DOM"], types: [] },
+    { lib: ["ES2023"], types: ["node"] },
+    { lib: ["ES2023"] },
+  ])("rejects client platform capabilities in compiler options %j", async (compilerOptions) => {
+    const root = await fixture();
+    const file = join(root, "packages", "client", "tsconfig.json");
+    await writeFile(file, JSON.stringify({ compilerOptions, include: ["src"] }));
+    expect(await checkCoreDependencies(root)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ file, code: "COMPILER_BOUNDARY" }),
     ]));
   });
 
