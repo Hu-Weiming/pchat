@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ConversationProjectionSchema, DomainErrorSchema, EventCursorSchema, HarnessCommandSchema, HarnessEventSchema, HarnessQuerySchema, ThoughtStagePackageSchema, TurnProjectionSchema } from "./harness";
 
-export const HARNESS_PROTOCOL_VERSION = 1;
+export const HARNESS_PROTOCOL_VERSION = 2;
 const RequestId = z.string().min(1).max(200);
 const envelope = { protocolVersion: z.literal(HARNESS_PROTOCOL_VERSION), requestId: RequestId };
 export const ClientRequestSchema = z.discriminatedUnion("type", [

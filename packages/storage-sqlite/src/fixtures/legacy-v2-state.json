@@ -1,0 +1,535 @@
+{
+  "epoch": 1,
+  "suspended": false,
+  "lastEventSeq": 22,
+  "conversations": [
+    {
+      "id": "fake-1-1",
+      "title": "Legacy single-role discussion",
+      "settings": {
+        "participantId": "test-role",
+        "knowledgeMode": "PRIMARY",
+        "model": {
+          "connectionId": "model-test",
+          "modelId": "fake-model",
+          "configRevision": "model-v1"
+        },
+        "ragConnectionId": "rag-test"
+      },
+      "queueStatus": "PAUSED",
+      "activeTurnId": "fake-1-8",
+      "questions": [
+        {
+          "id": "fake-1-2",
+          "text": "A completed historical question",
+          "status": "COMPLETED",
+          "turnId": "fake-1-3",
+          "submittedAt": 1000,
+          "settings": {
+            "participantId": "test-role",
+            "knowledgeMode": "PRIMARY",
+            "model": {
+              "connectionId": "model-test",
+              "modelId": "fake-model",
+              "configRevision": "model-v1"
+            },
+            "ragConnectionId": "rag-test"
+          },
+          "participant": {
+            "id": "test-role",
+            "revision": "role-v1",
+            "label": "Test thought stage",
+            "status": "CONFIRMED",
+            "corpusId": "test-corpus",
+            "corpusRevision": "corpus-v1",
+            "retrievalConfigRevision": "retrieval-v1",
+            "promptPolicyRevision": "prompt-v1"
+          }
+        },
+        {
+          "id": "fake-1-7",
+          "text": "An uncertain historical question",
+          "status": "WAITING_USER",
+          "turnId": "fake-1-8",
+          "submittedAt": 1000,
+          "settings": {
+            "participantId": "test-role",
+            "knowledgeMode": "PRIMARY",
+            "model": {
+              "connectionId": "model-test",
+              "modelId": "fake-model",
+              "configRevision": "model-v1"
+            },
+            "ragConnectionId": "rag-test"
+          },
+          "participant": {
+            "id": "test-role",
+            "revision": "role-v1",
+            "label": "Test thought stage",
+            "status": "CONFIRMED",
+            "corpusId": "test-corpus",
+            "corpusRevision": "corpus-v1",
+            "retrievalConfigRevision": "retrieval-v1",
+            "promptPolicyRevision": "prompt-v1"
+          }
+        },
+        {
+          "id": "fake-1-12",
+          "text": "A question still in the queue",
+          "status": "QUEUED",
+          "turnId": null,
+          "submittedAt": 1000,
+          "settings": {
+            "participantId": "test-role",
+            "knowledgeMode": "PRIMARY",
+            "model": {
+              "connectionId": "model-test",
+              "modelId": "fake-model",
+              "configRevision": "model-v1"
+            },
+            "ragConnectionId": "rag-test"
+          },
+          "participant": {
+            "id": "test-role",
+            "revision": "role-v1",
+            "label": "Test thought stage",
+            "status": "CONFIRMED",
+            "corpusId": "test-corpus",
+            "corpusRevision": "corpus-v1",
+            "retrievalConfigRevision": "retrieval-v1",
+            "promptPolicyRevision": "prompt-v1"
+          }
+        }
+      ],
+      "turnIds": [
+        "fake-1-3",
+        "fake-1-8"
+      ]
+    }
+  ],
+  "turns": [
+    {
+      "id": "fake-1-3",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-2",
+      "status": "COMPLETED",
+      "context": {
+        "question": {
+          "id": "fake-1-2",
+          "text": "A completed historical question"
+        },
+        "settings": {
+          "participantId": "test-role",
+          "knowledgeMode": "PRIMARY",
+          "model": {
+            "connectionId": "model-test",
+            "modelId": "fake-model",
+            "configRevision": "model-v1"
+          },
+          "ragConnectionId": "rag-test"
+        },
+        "participant": {
+          "id": "test-role",
+          "revision": "role-v1",
+          "label": "Test thought stage",
+          "status": "CONFIRMED",
+          "corpusId": "test-corpus",
+          "corpusRevision": "corpus-v1",
+          "retrievalConfigRevision": "retrieval-v1",
+          "promptPolicyRevision": "prompt-v1"
+        },
+        "history": []
+      },
+      "roleRuns": [
+        {
+          "id": "fake-1-4",
+          "status": "COMPLETED",
+          "textSoFar": "A test paraphrase about: A completed historical question",
+          "revision": 1,
+          "answer": {
+            "text": "A test paraphrase about: A completed historical question",
+            "kind": "PARAPHRASE",
+            "evidenceIds": [
+              "test-evidence"
+            ]
+          },
+          "errorCode": null,
+          "evidence": [
+            {
+              "id": "test-evidence",
+              "corpusId": "test-corpus",
+              "corpusRevision": "corpus-v1",
+              "sourceId": "test-source",
+              "sourceRevision": "source-v1",
+              "text": "A test passage about freedom.",
+              "contentHash": "test-content-hash",
+              "locator": "section 1",
+              "workTitle": "Test work",
+              "edition": "Test edition",
+              "translator": null,
+              "kind": "PRIMARY"
+            }
+          ],
+          "attempts": [
+            {
+              "id": "fake-1-5",
+              "kind": "RAG",
+              "status": "SUCCEEDED",
+              "previousAttemptId": null,
+              "reservedCostUnits": 1,
+              "draft": ""
+            },
+            {
+              "id": "fake-1-6",
+              "kind": "MODEL",
+              "status": "SUCCEEDED",
+              "previousAttemptId": null,
+              "reservedCostUnits": 1,
+              "draft": "A test paraphrase about: A completed historical question"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fake-1-8",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "status": "WAITING_USER",
+      "context": {
+        "question": {
+          "id": "fake-1-7",
+          "text": "An uncertain historical question"
+        },
+        "settings": {
+          "participantId": "test-role",
+          "knowledgeMode": "PRIMARY",
+          "model": {
+            "connectionId": "model-test",
+            "modelId": "fake-model",
+            "configRevision": "model-v1"
+          },
+          "ragConnectionId": "rag-test"
+        },
+        "participant": {
+          "id": "test-role",
+          "revision": "role-v1",
+          "label": "Test thought stage",
+          "status": "CONFIRMED",
+          "corpusId": "test-corpus",
+          "corpusRevision": "corpus-v1",
+          "retrievalConfigRevision": "retrieval-v1",
+          "promptPolicyRevision": "prompt-v1"
+        },
+        "history": [
+          {
+            "turnId": "fake-1-3",
+            "question": "A completed historical question",
+            "answer": "A test paraphrase about: A completed historical question"
+          }
+        ]
+      },
+      "roleRuns": [
+        {
+          "id": "fake-1-9",
+          "status": "WAITING_USER",
+          "textSoFar": "Second historical draft",
+          "revision": 3,
+          "answer": null,
+          "errorCode": "PROVIDER_FAILED",
+          "evidence": [
+            {
+              "id": "test-evidence",
+              "corpusId": "test-corpus",
+              "corpusRevision": "corpus-v1",
+              "sourceId": "test-source",
+              "sourceRevision": "source-v1",
+              "text": "A test passage about freedom.",
+              "contentHash": "test-content-hash",
+              "locator": "section 1",
+              "workTitle": "Test work",
+              "edition": "Test edition",
+              "translator": null,
+              "kind": "PRIMARY"
+            }
+          ],
+          "attempts": [
+            {
+              "id": "fake-1-10",
+              "kind": "RAG",
+              "status": "SUCCEEDED",
+              "previousAttemptId": null,
+              "reservedCostUnits": 1,
+              "draft": ""
+            },
+            {
+              "id": "fake-1-11",
+              "kind": "MODEL",
+              "status": "OUTCOME_UNKNOWN",
+              "previousAttemptId": null,
+              "reservedCostUnits": 1,
+              "draft": "Historical draft before an unknown outcome"
+            },
+            {
+              "id": "fake-1-13",
+              "kind": "MODEL",
+              "status": "OUTCOME_UNKNOWN",
+              "previousAttemptId": "fake-1-11",
+              "reservedCostUnits": 1,
+              "draft": "Second historical draft"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "fingerprint": "{\"type\":\"CreateConversation\",\"commandId\":\"legacy-create\",\"title\":\"Legacy single-role discussion\",\"settings\":{\"participantId\":\"test-role\",\"knowledgeMode\":\"PRIMARY\",\"model\":{\"connectionId\":\"model-test\",\"modelId\":\"fake-model\",\"configRevision\":\"model-v1\"},\"ragConnectionId\":\"rag-test\"}}",
+      "receipt": {
+        "ok": true,
+        "commandId": "legacy-create",
+        "lastEventSeq": 1,
+        "conversationId": "fake-1-1"
+      }
+    },
+    {
+      "fingerprint": "{\"type\":\"SubmitQuestion\",\"commandId\":\"legacy-first\",\"conversationId\":\"fake-1-1\",\"text\":\"A completed historical question\"}",
+      "receipt": {
+        "ok": true,
+        "commandId": "legacy-first",
+        "lastEventSeq": 2,
+        "conversationId": "fake-1-1",
+        "questionId": "fake-1-2"
+      }
+    },
+    {
+      "fingerprint": "{\"type\":\"ChangeParticipants\",\"commandId\":\"legacy-change\",\"conversationId\":\"fake-1-1\",\"participantId\":\"test-role\"}",
+      "receipt": {
+        "ok": true,
+        "commandId": "legacy-change",
+        "lastEventSeq": 8,
+        "conversationId": "fake-1-1"
+      }
+    },
+    {
+      "fingerprint": "{\"type\":\"SubmitQuestion\",\"commandId\":\"legacy-second\",\"conversationId\":\"fake-1-1\",\"text\":\"An uncertain historical question\"}",
+      "receipt": {
+        "ok": true,
+        "commandId": "legacy-second",
+        "lastEventSeq": 9,
+        "conversationId": "fake-1-1",
+        "questionId": "fake-1-7"
+      }
+    },
+    {
+      "fingerprint": "{\"type\":\"SubmitQuestion\",\"commandId\":\"legacy-queued\",\"conversationId\":\"fake-1-1\",\"text\":\"A question still in the queue\"}",
+      "receipt": {
+        "ok": true,
+        "commandId": "legacy-queued",
+        "lastEventSeq": 13,
+        "conversationId": "fake-1-1",
+        "questionId": "fake-1-12"
+      }
+    },
+    {
+      "fingerprint": "{\"type\":\"RegenerateRole\",\"commandId\":\"legacy-regenerate\",\"roleRunId\":\"fake-1-9\"}",
+      "receipt": {
+        "ok": true,
+        "commandId": "legacy-regenerate",
+        "lastEventSeq": 18,
+        "turnId": "fake-1-8",
+        "roleRunId": "fake-1-9"
+      }
+    },
+    {
+      "fingerprint": "{\"type\":\"SubmitQuestion\",\"commandId\":\"legacy-rejected\",\"conversationId\":\"missing\",\"text\":\"Rejected historical question\"}",
+      "receipt": {
+        "ok": false,
+        "commandId": "legacy-rejected",
+        "lastEventSeq": 22,
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "The requested item was not found."
+        }
+      }
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "at": 1000,
+      "type": "ConversationCreated",
+      "conversationId": "fake-1-1"
+    },
+    {
+      "seq": 2,
+      "at": 1000,
+      "type": "QuestionAccepted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-2"
+    },
+    {
+      "seq": 3,
+      "at": 1000,
+      "type": "TurnStarted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-2",
+      "turnId": "fake-1-3"
+    },
+    {
+      "seq": 4,
+      "at": 1000,
+      "type": "RoleStarted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-2",
+      "turnId": "fake-1-3",
+      "roleRunId": "fake-1-4"
+    },
+    {
+      "seq": 5,
+      "at": 1000,
+      "type": "EvidenceCaptured",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-2",
+      "turnId": "fake-1-3",
+      "roleRunId": "fake-1-4"
+    },
+    {
+      "seq": 6,
+      "at": 1000,
+      "type": "RoleCompleted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-2",
+      "turnId": "fake-1-3",
+      "roleRunId": "fake-1-4"
+    },
+    {
+      "seq": 7,
+      "at": 1000,
+      "type": "TurnCompleted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-2",
+      "turnId": "fake-1-3"
+    },
+    {
+      "seq": 8,
+      "at": 1000,
+      "type": "ConversationChanged",
+      "conversationId": "fake-1-1"
+    },
+    {
+      "seq": 9,
+      "at": 1000,
+      "type": "QuestionAccepted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7"
+    },
+    {
+      "seq": 10,
+      "at": 1000,
+      "type": "TurnStarted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8"
+    },
+    {
+      "seq": 11,
+      "at": 1000,
+      "type": "RoleStarted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8",
+      "roleRunId": "fake-1-9"
+    },
+    {
+      "seq": 12,
+      "at": 1000,
+      "type": "EvidenceCaptured",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8",
+      "roleRunId": "fake-1-9"
+    },
+    {
+      "seq": 13,
+      "at": 1000,
+      "type": "QuestionAccepted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-12"
+    },
+    {
+      "seq": 14,
+      "at": 1000,
+      "type": "RoleCheckpoint",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8",
+      "roleRunId": "fake-1-9"
+    },
+    {
+      "seq": 15,
+      "at": 1000,
+      "type": "RoleWaiting",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8",
+      "roleRunId": "fake-1-9"
+    },
+    {
+      "seq": 16,
+      "at": 1000,
+      "type": "TurnWaiting",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8"
+    },
+    {
+      "seq": 17,
+      "at": 1000,
+      "type": "QueuePaused",
+      "conversationId": "fake-1-1"
+    },
+    {
+      "seq": 18,
+      "at": 1000,
+      "type": "RoleStarted",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8",
+      "roleRunId": "fake-1-9"
+    },
+    {
+      "seq": 19,
+      "at": 1000,
+      "type": "RoleCheckpoint",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8",
+      "roleRunId": "fake-1-9"
+    },
+    {
+      "seq": 20,
+      "at": 1000,
+      "type": "RoleWaiting",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8",
+      "roleRunId": "fake-1-9"
+    },
+    {
+      "seq": 21,
+      "at": 1000,
+      "type": "TurnWaiting",
+      "conversationId": "fake-1-1",
+      "questionId": "fake-1-7",
+      "turnId": "fake-1-8"
+    },
+    {
+      "seq": 22,
+      "at": 1000,
+      "type": "QueuePaused",
+      "conversationId": "fake-1-1"
+    }
+  ]
+}

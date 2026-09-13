@@ -8,7 +8,7 @@ describe("Harness command trust boundary", () => {
       commandId: "create-1",
       title: "A question about freedom",
       settings: {
-        participantId: "kant-1785",
+        participantIds: ["kant-1785"],
         knowledgeMode: "INFERENCE",
         model: { connectionId: "model-test", modelId: "fake", configRevision: "1" },
         ragConnectionId: "rag-test",
@@ -35,10 +35,21 @@ describe("Harness command trust boundary", () => {
     expect(HarnessCommandSchema.safeParse({ type: "RegenerateRole", commandId: "g", turnId: "t" }).success).toBe(false);
   });
 
+  it("accepts one to three unique participant IDs and rejects ambiguous or legacy selection", () => {
+    const command = { type: "ChangeParticipants", commandId: "change", conversationId: "conversation" };
+    for (const participantIds of [["one"], ["one", "two"], ["one", "two", "three"]]) {
+      expect(HarnessCommandSchema.parse({ ...command, participantIds })).toEqual({ ...command, participantIds });
+    }
+    for (const participantIds of [[], ["one", "one"], ["one", "two", "three", "four"]]) {
+      expect(HarnessCommandSchema.safeParse({ ...command, participantIds }).success).toBe(false);
+    }
+    expect(HarnessCommandSchema.safeParse({ ...command, participantId: "one" }).success).toBe(false);
+  });
+
   it("validates read projections, command failures and safe event bookmarks", () => {
     expect(HarnessQuerySchema.parse({ type: "GetConversation", conversationId: "c" })).toEqual({ type: "GetConversation", conversationId: "c" });
     const snapshot = { id: "c", title: "A discussion", queueStatus: "RUNNING", activeTurnId: null, questions: [], turnIds: [], settings: {
-      participantId: "kant-1785", knowledgeMode: "INFERENCE", model: { connectionId: "model-test", modelId: "fake", configRevision: "1" }, ragConnectionId: "rag-test",
+      participantIds: ["kant-1785"], knowledgeMode: "INFERENCE", model: { connectionId: "model-test", modelId: "fake", configRevision: "1" }, ragConnectionId: "rag-test",
     } };
     expect(ConversationProjectionSchema.parse(snapshot)).toEqual(snapshot);
     expect(CommandReceiptSchema.parse({ ok: false, commandId: "bad", lastEventSeq: 0, error: { code: "INVALID_TRANSITION", message: "This action is not valid in the current state." } }).ok).toBe(false);

@@ -8,7 +8,7 @@ export const ModelBindingSchema = z.strictObject({
   configRevision: Id,
 });
 export const ConversationSettingsSchema = z.strictObject({
-  participantId: Id,
+  participantIds: z.array(Id).min(1).max(3).refine((ids) => new Set(ids).size === ids.length),
   knowledgeMode: KnowledgeModeSchema,
   model: ModelBindingSchema,
   ragConnectionId: Id,
@@ -27,7 +27,7 @@ export const HarnessCommandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("RegenerateRole"), commandId: Id, roleRunId: Id }),
   z.strictObject({ type: z.literal("SuspendRuntime"), commandId: Id }),
   z.strictObject({ type: z.literal("WithdrawQuestion"), commandId: Id, questionId: Id }),
-  z.strictObject({ type: z.literal("ChangeParticipants"), commandId: Id, conversationId: Id, participantId: Id }),
+  z.strictObject({ type: z.literal("ChangeParticipants"), commandId: Id, conversationId: Id, participantIds: ConversationSettingsSchema.shape.participantIds }),
 ]);
 export type KnowledgeMode = z.infer<typeof KnowledgeModeSchema>;
 export type ModelBinding = z.infer<typeof ModelBindingSchema>;
@@ -38,7 +38,7 @@ export const EventCursorSchema = z.number().int().min(0).max(Number.MAX_SAFE_INT
 export type EventCursor = z.infer<typeof EventCursorSchema>;
 export const QuestionStatusSchema = z.enum(["QUEUED", "RUNNING", "WAITING_USER", "COMPLETED", "STOPPED", "FAILED", "WITHDRAWN"]);
 export const TurnStatusSchema = z.enum(["RUNNING", "WAITING_USER", "COMPLETED", "STOPPED", "FAILED"]);
-export const RoleStatusSchema = z.enum(["RETRIEVING", "GENERATING", "WAITING_USER", "COMPLETED", "STOPPED", "FAILED"]);
+export const RoleStatusSchema = z.enum(["PENDING", "RETRIEVING", "GENERATING", "WAITING_USER", "COMPLETED", "STOPPED", "FAILED"]);
 export const AttemptStatusSchema = z.enum(["PREPARED", "IN_FLIGHT", "SUCCEEDED", "FAILED", "CANCELLED", "OUTCOME_UNKNOWN"]);
 export type QuestionStatus = z.infer<typeof QuestionStatusSchema>;
 export type TurnStatus = z.infer<typeof TurnStatusSchema>;
@@ -86,23 +86,35 @@ export const ContextSnapshotSchema = z.strictObject({
   participant: ThoughtStagePackageSchema,
   history: z.array(z.strictObject({ turnId: Id, question: z.string(), answer: z.string() })),
 });
+export const TurnContextSnapshotSchema = z.strictObject({
+  question: ContextSnapshotSchema.shape.question, settings: ConversationSettingsSchema,
+  participants: z.array(ThoughtStagePackageSchema).min(1).max(3), history: ContextSnapshotSchema.shape.history,
+});
 export const ExternalAttemptSchema = z.strictObject({
   id: Id, kind: z.enum(["RAG", "MODEL"]), status: AttemptStatusSchema,
   previousAttemptId: Id.nullable(), reservedCostUnits: z.number().min(0), draft: z.string(),
 });
 export const RoleRunProjectionSchema = z.strictObject({
   id: Id, status: RoleStatusSchema, textSoFar: z.string(), revision: EventCursorSchema,
+  context: ContextSnapshotSchema,
   evidence: z.array(EvidenceSchema), answer: AnswerSchema.nullable(),
   attempts: z.array(ExternalAttemptSchema), errorCode: z.string().nullable(),
 });
+export const ComparisonProjectionSchema = z.strictObject({
+  columns: z.array(z.strictObject({ roleRunId: Id, participantId: Id, participantLabel: z.string(), answer: AnswerSchema })).min(2).max(3),
+  excludedRoleRunIds: z.array(Id),
+});
 export const TurnProjectionSchema = z.strictObject({
   id: Id, conversationId: Id, questionId: Id, status: TurnStatusSchema,
-  context: ContextSnapshotSchema, roleRuns: z.array(RoleRunProjectionSchema),
+  context: TurnContextSnapshotSchema, roleRuns: z.array(RoleRunProjectionSchema).min(1).max(3),
+  comparison: ComparisonProjectionSchema.nullable(),
 });
 export type ThoughtStagePackage = z.infer<typeof ThoughtStagePackageSchema>;
 export type Evidence = z.infer<typeof EvidenceSchema>;
 export type Answer = z.infer<typeof AnswerSchema>;
 export type ContextSnapshot = z.infer<typeof ContextSnapshotSchema>;
+export type TurnContextSnapshot = z.infer<typeof TurnContextSnapshotSchema>;
+export type ComparisonProjection = z.infer<typeof ComparisonProjectionSchema>;
 export type ExternalAttempt = z.infer<typeof ExternalAttemptSchema>;
 export type RoleRunProjection = z.infer<typeof RoleRunProjectionSchema>;
 export type TurnProjection = z.infer<typeof TurnProjectionSchema>;
@@ -142,7 +154,7 @@ export const HarnessEventSchema = z.discriminatedUnion("type", [
   conversationEvent("QueuePaused"), conversationEvent("QueueResumed"),
   questionEvent("QuestionAccepted"), questionEvent("QuestionWithdrawn"),
   turnEvent("TurnStarted"), turnEvent("TurnCompleted"), turnEvent("TurnStopped"), turnEvent("TurnFailed"), turnEvent("TurnWaiting"),
-  roleEvent("RoleStarted"), roleEvent("EvidenceCaptured"), roleEvent("RoleCheckpoint"),
+  roleEvent("RoleQueued"), roleEvent("RoleStarted"), roleEvent("EvidenceCaptured"), roleEvent("RoleCheckpoint"),
   roleEvent("RoleCompleted"), roleEvent("RoleStopped"), roleEvent("RoleFailed"), roleEvent("RoleWaiting"),
   z.strictObject({ ...eventBase, type: z.literal("RuntimeSuspended") }),
 ]);

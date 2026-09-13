@@ -8,7 +8,7 @@ describe("catalog and conversation settings projections", () => {
     const draft = { ...testRole, id: "draft-role", status: "DRAFT" as const };
     const harness = await createHarness(createTestDependencies({ roles: [testRole, draft] }));
     expect(await harness.query({ type: "ListRoles" })).toMatchObject({ ok: true, data: [testRole, draft], lastEventSeq: 0 });
-    expect(await harness.dispatch({ type: "CreateConversation", commandId: "draft", title: "Draft", settings: { ...testSettings, participantId: draft.id } }))
+    expect(await harness.dispatch({ type: "CreateConversation", commandId: "draft", title: "Draft", settings: { ...testSettings, participantIds: [draft.id] } }))
       .toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   });
 
@@ -18,9 +18,9 @@ describe("catalog and conversation settings projections", () => {
     const conversationId = await createConversation(harness);
     const before = await harness.query({ type: "GetConversation", conversationId });
     expect(before).toMatchObject({ ok: true, data: { settings: testSettings } });
-    await harness.dispatch({ type: "ChangeParticipants", commandId: "change", conversationId, participantId: next.id });
+    await harness.dispatch({ type: "ChangeParticipants", commandId: "change", conversationId, participantIds: [next.id] });
     expect(await harness.query({ type: "GetConversation", conversationId }))
-      .toMatchObject({ ok: true, data: { settings: { ...testSettings, participantId: next.id } } });
+      .toMatchObject({ ok: true, data: { settings: { ...testSettings, participantIds: [next.id] } } });
     expect(before).toMatchObject({ ok: true, data: { settings: testSettings } });
   });
 });

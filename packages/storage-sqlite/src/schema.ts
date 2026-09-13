@@ -15,19 +15,22 @@ CREATE TABLE questions (
   id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id),
   ordinal INTEGER NOT NULL, text TEXT NOT NULL, status TEXT NOT NULL,
   turn_id TEXT REFERENCES turns(id) DEFERRABLE INITIALLY DEFERRED,
-  submitted_at REAL NOT NULL, settings_json TEXT NOT NULL, participant_json TEXT NOT NULL,
+  submitted_at REAL NOT NULL, settings_json TEXT NOT NULL, participants_json TEXT NOT NULL,
   UNIQUE(conversation_id, ordinal)
 ) STRICT;
 CREATE TABLE turns (
   id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id),
   question_id TEXT NOT NULL UNIQUE REFERENCES questions(id), ordinal INTEGER NOT NULL UNIQUE,
-  conversation_ordinal INTEGER NOT NULL, status TEXT NOT NULL, context_json TEXT NOT NULL,
+  conversation_ordinal INTEGER NOT NULL, status TEXT NOT NULL, context_json TEXT NOT NULL, comparison_json TEXT,
   UNIQUE(conversation_id, conversation_ordinal)
 ) STRICT;
 CREATE TABLE role_runs (
   id TEXT PRIMARY KEY, turn_id TEXT NOT NULL REFERENCES turns(id), ordinal INTEGER NOT NULL,
   status TEXT NOT NULL, text_so_far TEXT NOT NULL, revision INTEGER NOT NULL,
   answer_json TEXT, error_code TEXT, UNIQUE(turn_id, ordinal)
+) STRICT;
+CREATE TABLE role_contexts (
+  role_run_id TEXT PRIMARY KEY REFERENCES role_runs(id), context_json TEXT NOT NULL
 ) STRICT;
 CREATE TABLE external_attempts (
   id TEXT PRIMARY KEY, role_run_id TEXT NOT NULL REFERENCES role_runs(id), ordinal INTEGER NOT NULL,

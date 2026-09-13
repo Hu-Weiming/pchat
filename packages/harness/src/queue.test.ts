@@ -95,7 +95,7 @@ describe("conversation queue", () => {
     await harness.dispatch({ type: "SubmitQuestion", commandId: "A", conversationId, text: "A" });
     await until(() => deps.model.calls.length === 1);
     await harness.dispatch({ type: "SubmitQuestion", commandId: "B", conversationId, text: "B" });
-    expect(await harness.dispatch({ type: "ChangeParticipants", commandId: "change", conversationId, participantId: laterRole.id })).toMatchObject({ ok: true });
+    expect(await harness.dispatch({ type: "ChangeParticipants", commandId: "change", conversationId, participantIds: [laterRole.id] })).toMatchObject({ ok: true });
     await harness.dispatch({ type: "SubmitQuestion", commandId: "C", conversationId, text: "C" });
     settings.model.modelId = "mutated-model";
     laterRole.corpusRevision = "mutated-revision";

@@ -40,7 +40,7 @@ export interface QuestionRecord {
   turnId: string | null;
   submittedAt: number;
   settings: ConversationSettings;
-  participant: ThoughtStagePackage;
+  participants: ThoughtStagePackage[];
 }
 export interface ConversationRecord {
   id: string;

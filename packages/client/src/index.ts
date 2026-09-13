@@ -1,4 +1,4 @@
-import { ClientEventSchema, ClientRequestSchema, ClientResponseSchema, CommandReceiptSchema, EventCursorSchema, QueryResultSchemas, type ClientRequest, type CommandReceipt, type HarnessCommand, type HarnessEvent, type QueryMap, type QueryResult } from "@pchat/contracts";
+import { HARNESS_PROTOCOL_VERSION, ClientEventSchema, ClientRequestSchema, ClientResponseSchema, CommandReceiptSchema, EventCursorSchema, QueryResultSchemas, type ClientRequest, type CommandReceipt, type HarnessCommand, type HarnessEvent, type QueryMap, type QueryResult } from "@pchat/contracts";
 import { ClientError } from "./errors";
 import { mapStream } from "./stream";
 export { ClientError } from "./errors";
@@ -28,13 +28,13 @@ export function createClient(dependencies: { transport: ClientTransport; ids: { 
   return {
     async dispatch(command) {
       const commandId = command.commandId;
-      const result = CommandReceiptSchema.safeParse(await responseResult({ protocolVersion: 1, requestId: ids.next(), type: "command", command }));
+      const result = CommandReceiptSchema.safeParse(await responseResult({ protocolVersion: HARNESS_PROTOCOL_VERSION, requestId: ids.next(), type: "command", command }));
       if (!result.success || result.data.commandId !== commandId) throw new ClientError("PROTOCOL_ERROR");
       return result.data;
     },
     async query<K extends keyof QueryMap>(query: QueryMap[K]["request"] & { type: K }): Promise<QueryResult<QueryMap[K]["response"]>> {
       const queryType = query.type;
-      const received = await responseResult({ protocolVersion: 1, requestId: ids.next(), type: "query", query });
+      const received = await responseResult({ protocolVersion: HARNESS_PROTOCOL_VERSION, requestId: ids.next(), type: "query", query });
       const result = QueryResultSchemas[queryType].safeParse(received);
       if (!result.success) throw new ClientError("PROTOCOL_ERROR");
       return result.data as QueryResult<QueryMap[K]["response"]>;
@@ -61,10 +61,10 @@ export function inProcessTransport(harness: PchatClient): ClientTransport {
       const parsed = ClientRequestSchema.safeParse(input);
       if (!parsed.success) throw new ClientError("INVALID_INPUT");
       const request = parsed.data;
-      return { protocolVersion: 1, requestId: request.requestId, result: request.type === "command" ? await harness.dispatch(request.command) : await harness.query(request.query) };
+      return { protocolVersion: HARNESS_PROTOCOL_VERSION, requestId: request.requestId, result: request.type === "command" ? await harness.dispatch(request.command) : await harness.query(request.query) };
     },
     events(after) {
-      return mapStream(() => harness.events(after), (event) => ({ protocolVersion: 1, event }));
+      return mapStream(() => harness.events(after), (event) => ({ protocolVersion: HARNESS_PROTOCOL_VERSION, event }));
     },
   };
 }

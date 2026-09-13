@@ -1,8 +1,8 @@
 import type { DatabaseSync } from "node:sqlite";
 import {
-  AnswerSchema, CommandReceiptSchema, ContextSnapshotSchema, ConversationSettingsSchema,
+  AnswerSchema, CommandReceiptSchema, ComparisonProjectionSchema, ContextSnapshotSchema, ConversationSettingsSchema,
   EvidenceSchema, ExternalAttemptSchema, HarnessEventSchema, QuestionStatusSchema,
-  RoleStatusSchema, ThoughtStagePackageSchema, TurnStatusSchema,
+  RoleStatusSchema, TurnContextSnapshotSchema, TurnStatusSchema,
 } from "@pchat/contracts";
 import type { RuntimeState } from "@pchat/harness";
 
@@ -36,11 +36,12 @@ export function readState(database: DatabaseSync): RuntimeState {
     if (!conversation) throw new Error("Orphan question");
     conversation.questions.push({ id: string(row.id), text: string(row.text), status: QuestionStatusSchema.parse(row.status),
       turnId: nullableString(row.turn_id), submittedAt: number(row.submitted_at),
-      settings: ConversationSettingsSchema.parse(json(row.settings_json)), participant: ThoughtStagePackageSchema.parse(json(row.participant_json)) });
+      settings: ConversationSettingsSchema.parse(json(row.settings_json)), participants: TurnContextSnapshotSchema.shape.participants.parse(json(row.participants_json)) });
   }
   for (const row of database.prepare("SELECT * FROM turns ORDER BY ordinal").all()) {
     state.turns.push({ id: string(row.id), conversationId: string(row.conversation_id), questionId: string(row.question_id),
-      status: TurnStatusSchema.parse(row.status), context: ContextSnapshotSchema.parse(json(row.context_json)), roleRuns: [] });
+      status: TurnStatusSchema.parse(row.status), context: TurnContextSnapshotSchema.parse(json(row.context_json)), roleRuns: [],
+      comparison: row.comparison_json === null ? null : ComparisonProjectionSchema.parse(json(row.comparison_json)) });
   }
   const turns = new Map(state.turns.map((turn) => [turn.id, turn]));
   for (const row of database.prepare("SELECT id, conversation_id FROM turns ORDER BY conversation_id, conversation_ordinal").all()) {
@@ -48,11 +49,11 @@ export function readState(database: DatabaseSync): RuntimeState {
     if (!conversation) throw new Error("Orphan turn");
     conversation.turnIds.push(string(row.id));
   }
-  for (const row of database.prepare("SELECT * FROM role_runs ORDER BY turn_id, ordinal").all()) {
+  for (const row of database.prepare("SELECT role_runs.*, role_contexts.context_json FROM role_runs LEFT JOIN role_contexts ON role_contexts.role_run_id = role_runs.id ORDER BY role_runs.turn_id, role_runs.ordinal").all()) {
     const turn = turns.get(string(row.turn_id));
     if (!turn) throw new Error("Orphan role run");
     turn.roleRuns.push({ id: string(row.id), status: RoleStatusSchema.parse(row.status), textSoFar: string(row.text_so_far),
-      revision: number(row.revision), answer: row.answer_json === null ? null : AnswerSchema.parse(json(row.answer_json)),
+      revision: number(row.revision), context: ContextSnapshotSchema.parse(json(row.context_json)), answer: row.answer_json === null ? null : AnswerSchema.parse(json(row.answer_json)),
       errorCode: nullableString(row.error_code), evidence: [], attempts: [] });
   }
   const roles = new Map(state.turns.flatMap((turn) => turn.roleRuns.map((role) => [role.id, role] as const)));
@@ -82,9 +83,10 @@ function rowsFor(state: RuntimeState): TableRows[] {
   const meta = table("runtime_meta", ["singleton", "epoch", "suspended", "last_event_seq"], ["singleton"]);
   meta.rows.push([1, state.epoch, Number(state.suspended), state.lastEventSeq]);
   const conversations = table("conversations", ["id", "ordinal", "title", "settings_json", "queue_status", "active_turn_id"], ["id"]);
-  const questions = table("questions", ["id", "conversation_id", "ordinal", "text", "status", "turn_id", "submitted_at", "settings_json", "participant_json"], ["id"]);
-  const turns = table("turns", ["id", "conversation_id", "question_id", "ordinal", "conversation_ordinal", "status", "context_json"], ["id"]);
+  const questions = table("questions", ["id", "conversation_id", "ordinal", "text", "status", "turn_id", "submitted_at", "settings_json", "participants_json"], ["id"]);
+  const turns = table("turns", ["id", "conversation_id", "question_id", "ordinal", "conversation_ordinal", "status", "context_json", "comparison_json"], ["id"]);
   const roles = table("role_runs", ["id", "turn_id", "ordinal", "status", "text_so_far", "revision", "answer_json", "error_code"], ["id"]);
+  const roleContexts = table("role_contexts", ["role_run_id", "context_json"], ["role_run_id"]);
   const attempts = table("external_attempts", ["id", "role_run_id", "ordinal", "kind", "status", "previous_attempt_id", "reserved_cost_units", "draft"], ["id"]);
   const evidence = table("evidence_snapshots", ["role_run_id", "id", "ordinal", "snapshot_json"], ["role_run_id", "id"]);
   const commands = table("command_receipts", ["command_id", "ordinal", "fingerprint", "receipt_json"], ["command_id"]);
@@ -95,16 +97,17 @@ function rowsFor(state: RuntimeState): TableRows[] {
     conversation.turnIds.forEach((id, index) => { turnOrder.set(id, index); });
     conversation.questions.forEach((question, index) => {
       questions.rows.push([question.id, conversation.id, index, question.text, question.status, question.turnId, question.submittedAt,
-        JSON.stringify(question.settings), JSON.stringify(question.participant)]);
+        JSON.stringify(question.settings), JSON.stringify(question.participants)]);
     });
   });
   state.turns.forEach((turn, ordinal) => {
     const conversationOrdinal = turnOrder.get(turn.id);
     if (conversationOrdinal === undefined) throw new Error("Turn missing from conversation");
-    turns.rows.push([turn.id, turn.conversationId, turn.questionId, ordinal, conversationOrdinal, turn.status, JSON.stringify(turn.context)]);
+    turns.rows.push([turn.id, turn.conversationId, turn.questionId, ordinal, conversationOrdinal, turn.status, JSON.stringify(turn.context), turn.comparison === null ? null : JSON.stringify(turn.comparison)]);
     turn.roleRuns.forEach((role, roleOrdinal) => {
       roles.rows.push([role.id, turn.id, roleOrdinal, role.status, role.textSoFar, role.revision,
         role.answer === null ? null : JSON.stringify(role.answer), role.errorCode]);
+      roleContexts.rows.push([role.id, JSON.stringify(role.context)]);
       role.attempts.forEach((attempt, index) => {
         attempts.rows.push([attempt.id, role.id, index, attempt.kind, attempt.status, attempt.previousAttemptId, attempt.reservedCostUnits, attempt.draft]);
       });
@@ -113,7 +116,7 @@ function rowsFor(state: RuntimeState): TableRows[] {
   });
   state.commands.forEach((command, ordinal) => { commands.rows.push([command.receipt.commandId, ordinal, command.fingerprint, JSON.stringify(command.receipt)]); });
   for (const event of state.events) events.rows.push([event.seq, JSON.stringify(event)]);
-  return [meta, conversations, questions, turns, roles, attempts, evidence, commands, events];
+  return [meta, conversations, questions, turns, roles, roleContexts, attempts, evidence, commands, events];
 }
 
 function keyValues(table: TableRows, row: Cell[]): Cell[] {

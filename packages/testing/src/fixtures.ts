@@ -8,7 +8,7 @@ export const testRole: ThoughtStagePackage = {
 };
 
 export const testSettings: ConversationSettings = {
-  participantId: testRole.id, knowledgeMode: "PRIMARY",
+  participantIds: [testRole.id], knowledgeMode: "PRIMARY",
   model: { connectionId: "model-test", modelId: "fake-model", configRevision: "model-v1" },
   ragConnectionId: "rag-test",
 };

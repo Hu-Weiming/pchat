@@ -8,8 +8,9 @@ const turn: Record<TurnStatus, readonly TurnStatus[]> = {
   RUNNING: ["COMPLETED", "FAILED", "STOPPED", "WAITING_USER"], WAITING_USER: ["RUNNING", "STOPPED"], COMPLETED: [], FAILED: [], STOPPED: [],
 };
 const role: Record<RoleStatus, readonly RoleStatus[]> = {
+  PENDING: ["RETRIEVING", "GENERATING", "STOPPED", "WAITING_USER"],
   RETRIEVING: ["GENERATING", "FAILED", "STOPPED", "WAITING_USER"], GENERATING: ["COMPLETED", "FAILED", "STOPPED", "WAITING_USER"],
-  WAITING_USER: ["RETRIEVING", "GENERATING", "STOPPED"], COMPLETED: [], FAILED: [], STOPPED: [],
+  WAITING_USER: ["PENDING", "STOPPED"], COMPLETED: [], FAILED: [], STOPPED: [],
 };
 const attempt: Record<AttemptStatus, readonly AttemptStatus[]> = {
   PREPARED: ["IN_FLIGHT", "CANCELLED"], IN_FLIGHT: ["SUCCEEDED", "FAILED", "OUTCOME_UNKNOWN"],

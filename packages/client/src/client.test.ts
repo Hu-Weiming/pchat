@@ -6,6 +6,13 @@ import { createClient, inProcessTransport } from "./index";
 import type { ClientRequest } from "./index";
 
 describe("PchatClient through the same Harness interface", () => {
+  it("refuses the old single-participant wire version after the multi-participant contract upgrade", async () => {
+    const client = createClient({ ids: { next: () => "request" }, transport: {
+      async request() { return { protocolVersion: 1, requestId: "request", result: { ok: true, lastEventSeq: 0, data: [] } }; },
+      async *events() {},
+    } });
+    await expect(client.query({ type: "ListConversations" })).rejects.toMatchObject({ code: "PROTOCOL_ERROR" });
+  });
   it("correlates new transport requests while replaying the same business command once", async () => {
     const deps = createTestDependencies();
     const harness = await createHarness(deps);
@@ -30,10 +37,10 @@ describe("PchatClient through the same Harness interface", () => {
   });
 
   it.each([
-    { protocolVersion: 2, requestId: "request-1", result: { ok: true, lastEventSeq: 0, data: [] } },
-    { protocolVersion: 1, requestId: "wrong-request", result: { ok: true, lastEventSeq: 0, data: [] } },
-    { protocolVersion: 1, requestId: "request-1", result: { ok: true, lastEventSeq: 0, data: { id: "wrong projection" } } },
-    { protocolVersion: 1, requestId: "request-1", result: { ok: true, lastEventSeq: -1, data: [] } },
+    { protocolVersion: 99, requestId: "request-1", result: { ok: true, lastEventSeq: 0, data: [] } },
+    { protocolVersion: 2, requestId: "wrong-request", result: { ok: true, lastEventSeq: 0, data: [] } },
+    { protocolVersion: 2, requestId: "request-1", result: { ok: true, lastEventSeq: 0, data: { id: "wrong projection" } } },
+    { protocolVersion: 2, requestId: "request-1", result: { ok: true, lastEventSeq: -1, data: [] } },
   ])("rejects a response with a mismatched protocol, correlation or projection", async (response) => {
     const client = createClient({ ids: { next: () => "request-1" }, transport: { async request() { return response; }, async *events() {} } });
     await expect(client.query({ type: "ListConversations" })).rejects.toMatchObject({ code: "PROTOCOL_ERROR" });

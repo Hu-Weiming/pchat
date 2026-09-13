@@ -1,5 +1,5 @@
 import { HarnessCommandSchema, HarnessQuerySchema, type HarnessCommand, type CommandReceipt, type ConversationProjection, type QueryMap, type QueryResult, type HarnessEvent } from "@pchat/contracts";
-import type { ConversationRecord, HarnessDependencies } from "./ports";
+import type { ConversationRecord, HarnessDependencies, ThoughtStagePackage } from "./ports";
 import { copy, failure } from "./data";
 import { eventStream } from "./events";
 import { TurnCoordinator } from "./coordinator";
@@ -27,6 +27,15 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
   dependencies = validateConfiguration(dependencies);
   const { store, ids, clock } = dependencies;
   const roles = copy(dependencies.roles);
+  const selectParticipants = (participantIds: readonly string[]): ThoughtStagePackage[] | null => {
+    const selected: ThoughtStagePackage[] = [];
+    for (const id of participantIds) {
+      const role = roles.find((item) => item.id === id && item.status === "CONFIRMED");
+      if (!role) return null;
+      selected.push(role);
+    }
+    return selected;
+  };
   const epoch = await store.transaction((state) => {
     interruptActiveTurns(state, clock);
     state.suspended = false;
@@ -48,8 +57,8 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
         if (prior) return prior.fingerprint === fingerprint ? prior.receipt : { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("COMMAND_CONFLICT") };
         let receipt: CommandReceipt;
         if (command.type === "CreateConversation") {
-          const participant = roles.find((role) => role.id === command.settings.participantId && role.status === "CONFIRMED");
-          if (!participant) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
+          const participants = selectParticipants(command.settings.participantIds);
+          if (!participants) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
           else {
             const conversationId = ids.next();
             state.conversations.push({ id: conversationId, title: command.title, settings: command.settings, queueStatus: "RUNNING", activeTurnId: null, questions: [], turnIds: [] });
@@ -58,20 +67,20 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
           }
         } else if (command.type === "SubmitQuestion") {
           const conversation = state.conversations.find((item) => item.id === command.conversationId);
-          const participant = roles.find((role) => role.id === conversation?.settings.participantId && role.status === "CONFIRMED");
-          if (!conversation || !participant) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
+          const participants = conversation ? selectParticipants(conversation.settings.participantIds) : null;
+          if (!conversation || !participants) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
           else {
             const questionId = ids.next();
-            conversation.questions.push({ id: questionId, text: command.text, status: "QUEUED", turnId: null, submittedAt: clock.now(), settings: copy(conversation.settings), participant: copy(participant) });
+            conversation.questions.push({ id: questionId, text: command.text, status: "QUEUED", turnId: null, submittedAt: clock.now(), settings: copy(conversation.settings), participants: copy(participants) });
             emit(state, clock, { type: "QuestionAccepted", conversationId: conversation.id, questionId });
             receipt = { ok: true, commandId: command.commandId, conversationId: conversation.id, questionId, lastEventSeq: state.lastEventSeq };
           }
         } else if (command.type === "ChangeParticipants") {
           const conversation = state.conversations.find((item) => item.id === command.conversationId);
-          const participant = roles.find((role) => role.id === command.participantId && role.status === "CONFIRMED");
-          if (!conversation || !participant) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
+          const participants = selectParticipants(command.participantIds);
+          if (!conversation || !participants) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
           else {
-            conversation.settings.participantId = participant.id;
+            conversation.settings.participantIds = [...command.participantIds];
             emit(state, clock, { type: "ConversationChanged", conversationId: conversation.id });
             receipt = { ok: true, commandId: command.commandId, conversationId: conversation.id, lastEventSeq: state.lastEventSeq };
           }
@@ -85,7 +94,7 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
           }
         } else if (command.type === "ResumeQueue") {
           const conversation = state.conversations.find((item) => item.id === command.conversationId);
-          const waiting = state.turns.some((turn) => turn.id === conversation?.activeTurnId && turn.status === "WAITING_USER");
+          const waiting = state.turns.some((turn) => turn.id === conversation?.activeTurnId && turn.roleRuns.some((role) => role.status === "WAITING_USER"));
           if (!conversation || waiting || conversation.queueStatus !== "PAUSED") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!conversation ? "NOT_FOUND" : waiting ? "QUEUE_BLOCKED" : "INVALID_TRANSITION") };
           else {
             conversation.queueStatus = "RUNNING";
@@ -95,17 +104,18 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
         } else if (command.type === "RegenerateRole") {
           const turn = state.turns.find((item) => item.roleRuns.some((role) => role.id === command.roleRunId));
           const role = turn?.roleRuns.find((item) => item.id === command.roleRunId);
-          if (!turn || !role || turn.status !== "WAITING_USER" || role.status !== "WAITING_USER") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!turn || !role ? "NOT_FOUND" : "INVALID_TRANSITION") };
-          else if (state.turns.filter((item) => item.status === "RUNNING").length >= dependencies.limits.maxActiveTurns || state.turns.flatMap((item) => item.roleRuns).filter((item) => item.status === "RETRIEVING" || item.status === "GENERATING").length >= dependencies.limits.maxRoleRuns) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CAPACITY_EXCEEDED") };
+          if (!turn || !role || (turn.status !== "WAITING_USER" && turn.status !== "RUNNING") || role.status !== "WAITING_USER") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!turn || !role ? "NOT_FOUND" : "INVALID_TRANSITION") };
+          else if (turn.status === "WAITING_USER" && state.turns.filter((item) => item.status === "RUNNING").length >= dependencies.limits.maxActiveTurns) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CAPACITY_EXCEEDED") };
           else {
-            const previous = role.attempts.at(-1);
-            const stage = previous?.kind === "MODEL" || (previous?.kind === "RAG" && previous.status === "SUCCEEDED") ? "GENERATING" : "RETRIEVING";
-            transition("role", role, stage);
-            transition("turn", turn, "RUNNING");
+            transition("role", role, "PENDING");
             const conversation = state.conversations.find((item) => item.id === turn.conversationId)!;
-            transition("question", conversation.questions.find((item) => item.id === turn.questionId)!, "RUNNING");
+            if (turn.status === "WAITING_USER") {
+              transition("turn", turn, "RUNNING");
+              transition("question", conversation.questions.find((item) => item.id === turn.questionId)!, "RUNNING");
+            }
+            turn.comparison = null;
             role.textSoFar = ""; role.revision++; role.errorCode = null;
-            emit(state, clock, { type: "RoleStarted", conversationId: turn.conversationId, questionId: turn.questionId, turnId: turn.id, roleRunId: role.id });
+            emit(state, clock, { type: "RoleQueued", conversationId: turn.conversationId, questionId: turn.questionId, turnId: turn.id, roleRunId: role.id });
             receipt = { ok: true, commandId: command.commandId, turnId: turn.id, roleRunId: role.id, lastEventSeq: state.lastEventSeq };
           }
         } else if (command.type === "WithdrawQuestion") {

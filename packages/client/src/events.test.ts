@@ -16,9 +16,9 @@ describe("client event bookmarks and subscription lifetime", () => {
   });
 
   it.each([
-    { protocolVersion: 2, event: { seq: 1, at: 0, type: "RuntimeSuspended" } },
-    { protocolVersion: 1, event: { seq: 1, at: 0, type: "unknown-event" } },
-    { protocolVersion: 1, event: { seq: 2, at: 0, type: "RuntimeSuspended" } },
+    { protocolVersion: 99, event: { seq: 1, at: 0, type: "RuntimeSuspended" } },
+    { protocolVersion: 2, event: { seq: 1, at: 0, type: "unknown-event" } },
+    { protocolVersion: 2, event: { seq: 2, at: 0, type: "RuntimeSuspended" } },
   ])("rejects incompatible or missing events and releases the subscription", async (event) => {
     let closed = 0;
     const client = createClient({ ids: { next: () => "request" }, transport: {

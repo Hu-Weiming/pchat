@@ -73,12 +73,12 @@ describe("Harness configuration", () => {
     dependencies.rag.calls[0]!.complete();
 
     const first = await waitForTurn(harness, conversationId, "COMPLETED");
-    expect(TurnProjectionSchema.parse(first).context.participant).toEqual(testRole);
+    expect(TurnProjectionSchema.parse(first).roleRuns[0]?.context.participant).toEqual(testRole);
     expect(first.roleRuns[0]?.attempts.map((attempt) => attempt.reservedCostUnits)).toEqual([1, 1]);
 
     await harness.dispatch({ type: "SubmitQuestion", commandId: "second", conversationId, text: "And responsibility?" });
     const second = await waitForTurn(harness, conversationId, "COMPLETED", 1);
-    expect(TurnProjectionSchema.parse(second).context.participant).toEqual(testRole);
+    expect(TurnProjectionSchema.parse(second).roleRuns[0]?.context.participant).toEqual(testRole);
   });
 
   it("keeps startup errors sanitized when configuration cannot be read", async () => {

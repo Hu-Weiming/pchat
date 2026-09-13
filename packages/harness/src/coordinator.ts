@@ -5,6 +5,7 @@ import { emit } from "./journal";
 import { transition } from "./transitions";
 import { CancellationToken } from "./cancellation";
 import { insufficientEvidenceAnswer, validAnswer, validEvidence } from "./evidence-policy";
+import { pauseQueue, settleTurn } from "./settlement";
 
 class ExecutionFailure extends Error {
   constructor(readonly outcome: "REJECTED" | "OUTCOME_UNKNOWN" | "INVALID_PROVIDER_RESULT" | "BUDGET_EXCEEDED") { super(outcome) }
@@ -13,7 +14,9 @@ class ExecutionFailure extends Error {
 export class TurnCoordinator {
   private scheduled = false;
   private dirty = false;
-  private readonly running = new Map<string, CancellationToken>();
+  private readonly running = new Map<string, { turnId: string; token: CancellationToken }>();
+  private externalCalls = 0;
+  private readonly externalWaiters: { token: CancellationToken; resolve: (granted: boolean) => void; unsubscribe: () => void }[] = [];
   private readonly drafts = new Map<string, { attemptId: string; text: string }>();
   private retired = false;
   faulted = false;
@@ -21,7 +24,7 @@ export class TurnCoordinator {
   constructor(private readonly deps: HarnessDependencies, private readonly epoch: number) {
     const unsubscribe = deps.store.subscribe((notice) => {
       if (notice.epoch !== epoch) { this.retired = true; this.cancelAll(); this.unsubscribe(); return }
-      for (const [turnId, token] of this.running) if (notice.suspended || !notice.runnableTurnIds.includes(turnId)) token.cancel();
+      for (const { turnId, token } of this.running.values()) if (notice.suspended || !notice.runnableTurnIds.includes(turnId)) token.cancel();
     });
     this.unsubscribe = unsubscribe;
     if (this.retired) unsubscribe();
@@ -36,14 +39,14 @@ export class TurnCoordinator {
       try {
         while (this.dirty) {
           this.dirty = false;
-          let turn: TurnRecord | null;
-          while ((turn = await this.claim())) {
-            const claimed = turn;
+          let claimed: { turn: TurnRecord; role: RoleRunRecord } | null;
+          while ((claimed = await this.claim())) {
+            const { turn, role } = claimed;
             const token = new CancellationToken();
-            this.running.set(claimed.id, token);
-            void this.execute(claimed, token).catch(() => { this.faulted = true; this.cancelAll() }).finally(() => {
-              this.running.delete(claimed.id);
-              for (const role of claimed.roleRuns) this.drafts.delete(role.id);
+            this.running.set(role.id, { turnId: turn.id, token });
+            void this.execute(turn, role, token).catch(() => { this.faulted = true; this.cancelAll() }).finally(() => {
+              this.running.delete(role.id);
+              this.drafts.delete(role.id);
               this.wake();
             });
           }
@@ -52,8 +55,40 @@ export class TurnCoordinator {
     }).catch(() => { this.scheduled = false; this.faulted = true; this.cancelAll() });
   }
 
-  cancel(turnId: string): void { this.running.get(turnId)?.cancel() }
-  cancelAll(): void { for (const token of this.running.values()) token.cancel() }
+  cancel(turnId: string): void { for (const running of this.running.values()) if (running.turnId === turnId) running.token.cancel() }
+  cancelAll(): void { for (const { token } of this.running.values()) token.cancel() }
+
+  private acquireExternal(token: CancellationToken): Promise<boolean> {
+    if (token.cancelled || this.retired || this.faulted) return Promise.resolve(false);
+    if (this.externalCalls < this.deps.limits.maxExternalCalls) { this.externalCalls++; return Promise.resolve(true) }
+    return new Promise((resolve) => {
+      const waiter = { token, resolve, unsubscribe: () => {} };
+      this.externalWaiters.push(waiter);
+      waiter.unsubscribe = token.subscribe(() => {
+        const index = this.externalWaiters.indexOf(waiter);
+        if (index >= 0) this.externalWaiters.splice(index, 1);
+        resolve(false);
+      });
+    });
+  }
+
+  private releaseExternal(): void {
+    this.externalCalls--;
+    while (this.externalWaiters.length && this.externalCalls < this.deps.limits.maxExternalCalls) {
+      const waiter = this.externalWaiters.shift()!;
+      waiter.unsubscribe();
+      if (waiter.token.cancelled || this.retired || this.faulted) waiter.resolve(false);
+      else { this.externalCalls++; waiter.resolve(true) }
+    }
+  }
+
+  private async external<T>(token: CancellationToken, operation: () => Promise<T>): Promise<T | undefined> {
+    if (!await this.acquireExternal(token)) return undefined;
+    try {
+      if (token.cancelled || this.retired || this.faulted) return undefined;
+      return await operation();
+    } finally { this.releaseExternal() }
+  }
 
   checkpoint(state: RuntimeState, turn: TurnRecord): void {
     for (const role of turn.roleRuns) {
@@ -65,39 +100,53 @@ export class TurnCoordinator {
     }
   }
 
-  private claim(): Promise<TurnRecord | null> {
+  private claim(): Promise<{ turn: TurnRecord; role: RoleRunRecord } | null> {
     return this.deps.store.transaction((state) => {
       if (this.faulted || this.retired || state.epoch !== this.epoch || state.suspended) return null;
-      // P1 has one role and at most one external request per executing turn.
-      // Reserve its slot through the whole execution, including cancellation drain.
-      if (this.running.size >= this.deps.limits.maxExternalCalls) return null;
-      const existing = state.turns.find((turn) => turn.status === "RUNNING" && !this.running.has(turn.id));
-      if (existing) return existing;
+      // Role execution and external requests have independent global limits.
+      // Keep a running role's slot until cancellation has actually drained.
+      if (this.running.size >= this.deps.limits.maxRoleRuns) return null;
+      const claimRole = (turn: TurnRecord) => {
+        const role = turn.roleRuns.find((item) => item.status === "PENDING" && !this.running.has(item.id));
+        if (!role) return null;
+        const previous = role.attempts.at(-1);
+        transition("role", role, previous?.kind === "MODEL" || (previous?.kind === "RAG" && previous.status === "SUCCEEDED") ? "GENERATING" : "RETRIEVING");
+        emit(state, this.deps.clock, { type: "RoleStarted", ...this.eventIds(turn, role) });
+        return { turn, role };
+      };
+      for (const turn of state.turns) if (turn.status === "RUNNING") {
+        const claimed = claimRole(turn);
+        if (claimed) return claimed;
+      }
       if (state.turns.filter((turn) => turn.status === "RUNNING").length >= this.deps.limits.maxActiveTurns) return null;
-      if (state.turns.flatMap((turn) => turn.roleRuns).filter((role) => role.status === "RETRIEVING" || role.status === "GENERATING").length >= this.deps.limits.maxRoleRuns) return null;
       const conversation = state.conversations.find((item) => item.queueStatus === "RUNNING" && item.activeTurnId === null && item.questions.some((question) => question.status === "QUEUED"));
       const question = conversation?.questions.find((item) => item.status === "QUEUED");
       if (!conversation || !question) return null;
       const turnId = this.deps.ids.next();
-      const roleId = this.deps.ids.next();
+      const history = state.turns.filter((prior) => prior.conversationId === conversation.id && prior.status !== "RUNNING" && prior.status !== "WAITING_USER")
+        .flatMap((prior) => {
+          const answers = prior.roleRuns.filter((role) => role.status === "COMPLETED" && role.answer);
+          if (!answers.length) return [];
+          return [{ turnId: prior.id, question: prior.context.question.text, answer: answers.map((role) => prior.roleRuns.length === 1 ? role.answer!.text : `${role.context.participant.label}:\n${role.answer!.text}`).join("\n\n") }];
+        });
       const turn: TurnRecord = {
         id: turnId, conversationId: conversation.id, questionId: question.id, status: "RUNNING",
         context: {
-          question: { id: question.id, text: question.text }, settings: question.settings, participant: question.participant,
-          history: state.turns.filter((prior) => prior.conversationId === conversation.id && prior.status === "COMPLETED")
-            .map((prior) => ({ turnId: prior.id, question: prior.context.question.text, answer: prior.roleRuns[0]?.answer?.text ?? "" })),
+          question: { id: question.id, text: question.text }, settings: copy(question.settings), participants: copy(question.participants), history,
         },
-        roleRuns: [{ id: roleId, status: "RETRIEVING", textSoFar: "", revision: 0, evidence: [], answer: null, attempts: [], errorCode: null }],
+        roleRuns: question.participants.map((participant) => ({
+          id: this.deps.ids.next(), status: "PENDING", textSoFar: "", revision: 0, evidence: [], answer: null, attempts: [], errorCode: null,
+          context: { question: { id: question.id, text: question.text }, settings: copy(question.settings), participant: copy(participant), history: copy(history) },
+        })),
+        comparison: null,
       };
       transition("question", question, "RUNNING");
       question.turnId = turnId;
       conversation.activeTurnId = turnId;
       conversation.turnIds.push(turnId);
       state.turns.push(turn);
-      const ids = this.eventIds(turn, turn.roleRuns[0]!);
       emit(state, this.deps.clock, { type: "TurnStarted", conversationId: conversation.id, questionId: question.id, turnId });
-      emit(state, this.deps.clock, { type: "RoleStarted", ...ids });
-      return turn;
+      return claimRole(turn);
     });
   }
 
@@ -154,25 +203,25 @@ export class TurnCoordinator {
     transition("role", role, "COMPLETED");
     role.answer = answer; role.textSoFar = answer.text; role.revision++; role.errorCode = null;
     emit(state, this.deps.clock, { type: "RoleCompleted", ...this.eventIds(turn, role) });
-    transition("turn", turn, "COMPLETED");
-    const conversation = state.conversations.find((item) => item.id === turn.conversationId)!;
-    transition("question", conversation.questions.find((item) => item.id === turn.questionId)!, "COMPLETED");
-    conversation.activeTurnId = null;
-    emit(state, this.deps.clock, { type: "TurnCompleted", conversationId: conversation.id, questionId: turn.questionId, turnId: turn.id });
+    settleTurn(state, turn, this.deps.clock);
   }
 
-  private async execute(turn: TurnRecord, token: CancellationToken): Promise<void> {
-    const role = turn.roleRuns[0]!;
+  private async execute(turn: TurnRecord, role: RoleRunRecord, token: CancellationToken): Promise<void> {
     try {
       let evidence = role.evidence;
       if (role.status === "RETRIEVING") {
-        const attempt = await this.prepare(turn.id, role.id, "RAG");
-        if (!attempt || token.cancelled || this.retired) return;
-        const participant = turn.context.participant;
-        const result = RetrievalResultSchema.safeParse(await this.deps.rag.retrieve({
-          attemptId: attempt.id, roleRunId: role.id, connectionId: turn.context.settings.ragConnectionId,
-          query: turn.context.question.text, corpusId: participant.corpusId, corpusRevision: participant.corpusRevision, retrievalConfigRevision: participant.retrievalConfigRevision,
-        }, token));
+        const participant = role.context.participant;
+        const retrieved = await this.external(token, async () => {
+          const attempt = await this.prepare(turn.id, role.id, "RAG");
+          if (!attempt || token.cancelled || this.retired || this.faulted) return null;
+          return { attempt, raw: await this.deps.rag.retrieve({
+            attemptId: attempt.id, roleRunId: role.id, connectionId: role.context.settings.ragConnectionId,
+            query: role.context.question.text, corpusId: participant.corpusId, corpusRevision: participant.corpusRevision, retrievalConfigRevision: participant.retrievalConfigRevision,
+          }, token) };
+        });
+        if (!retrieved) return;
+        const { attempt } = retrieved;
+        const result = RetrievalResultSchema.safeParse(retrieved.raw);
         if (!result.success) throw new ExecutionFailure("INVALID_PROVIDER_RESULT");
         if (!result.data.ok) throw new ExecutionFailure(result.data.code);
         evidence = result.data.evidence;
@@ -184,41 +233,43 @@ export class TurnCoordinator {
           emit(state, this.deps.clock, { type: "EvidenceCaptured", ...this.eventIds(storedTurn, storedRole) });
         })) return;
       }
-      if (evidence.length === 0 && turn.context.settings.knowledgeMode !== "FICTION") {
+      if (evidence.length === 0 && role.context.settings.knowledgeMode !== "FICTION") {
         await this.deps.store.transaction((state) => {
           const current = this.active(state, turn.id, role.id);
           if (current) this.completeRole(state, current.turn, current.role, insufficientEvidenceAnswer());
         });
         return;
       }
-      const attempt = await this.prepare(turn.id, role.id, "MODEL");
-      if (!attempt || token.cancelled || this.retired) return;
-      let draft = "";
-      let checkpointLength = 0;
-      for await (const raw of this.deps.model.generate(copy({ attemptId: attempt.id, roleRunId: role.id, context: turn.context, evidence }), token)) {
-        const parsed = ModelChunkSchema.safeParse(raw);
-        if (!parsed.success) throw new ExecutionFailure("INVALID_PROVIDER_RESULT");
-        const chunk = parsed.data;
-        if (chunk.type === "failure") throw new ExecutionFailure(chunk.code);
-        if (chunk.type === "delta") {
-          draft += chunk.text;
-          this.drafts.set(role.id, { attemptId: attempt.id, text: draft });
-          if (draft.length - checkpointLength >= this.deps.draftCheckpointChars) {
-            if (!await this.update(turn.id, role.id, attempt.id, (state, storedTurn, storedRole, storedAttempt) => {
-              storedRole.textSoFar = draft; storedRole.revision++; storedAttempt.draft = draft;
-              emit(state, this.deps.clock, { type: "RoleCheckpoint", ...this.eventIds(storedTurn, storedRole) });
-            })) return;
-            checkpointLength = draft.length;
+      await this.external(token, async () => {
+        const attempt = await this.prepare(turn.id, role.id, "MODEL");
+        if (!attempt || token.cancelled || this.retired || this.faulted) return;
+        let draft = "";
+        let checkpointLength = 0;
+        for await (const raw of this.deps.model.generate(copy({ attemptId: attempt.id, roleRunId: role.id, context: role.context, evidence }), token)) {
+          const parsed = ModelChunkSchema.safeParse(raw);
+          if (!parsed.success) throw new ExecutionFailure("INVALID_PROVIDER_RESULT");
+          const chunk = parsed.data;
+          if (chunk.type === "failure") throw new ExecutionFailure(chunk.code);
+          if (chunk.type === "delta") {
+            draft += chunk.text;
+            this.drafts.set(role.id, { attemptId: attempt.id, text: draft });
+            if (draft.length - checkpointLength >= this.deps.draftCheckpointChars) {
+              if (!await this.update(turn.id, role.id, attempt.id, (state, storedTurn, storedRole, storedAttempt) => {
+                storedRole.textSoFar = draft; storedRole.revision++; storedAttempt.draft = draft;
+                emit(state, this.deps.clock, { type: "RoleCheckpoint", ...this.eventIds(storedTurn, storedRole) });
+              })) return;
+              checkpointLength = draft.length;
+            }
+            continue;
           }
-          continue;
-        }
-        if (!validAnswer(turn.context.settings.knowledgeMode, evidence, chunk.answer)) throw new ExecutionFailure("INVALID_PROVIDER_RESULT");
-        await this.update(turn.id, role.id, attempt.id, (state, storedTurn, storedRole, storedAttempt) => {
-          this.completeRole(state, storedTurn, storedRole, chunk.answer, storedAttempt);
-        });
-        return;
-      }
-      throw new ExecutionFailure("OUTCOME_UNKNOWN");
+          if (!validAnswer(role.context.settings.knowledgeMode, evidence, chunk.answer)) throw new ExecutionFailure("INVALID_PROVIDER_RESULT");
+          await this.update(turn.id, role.id, attempt.id, (state, storedTurn, storedRole, storedAttempt) => {
+            this.completeRole(state, storedTurn, storedRole, chunk.answer, storedAttempt);
+          });
+          return;
+          }
+        throw new ExecutionFailure("OUTCOME_UNKNOWN");
+      });
     } catch (error) {
       await this.deps.store.transaction((state) => {
         const current = this.active(state, turn.id, role.id);
@@ -230,15 +281,10 @@ export class TurnCoordinator {
         else if (attempt?.status === "IN_FLIGHT") transition("attempt", attempt, outcome === "OUTCOME_UNKNOWN" ? "OUTCOME_UNKNOWN" : "FAILED");
         const waiting = outcome === "OUTCOME_UNKNOWN";
         transition("role", current.role, waiting ? "WAITING_USER" : "FAILED");
-        transition("turn", current.turn, waiting ? "WAITING_USER" : "FAILED");
         current.role.errorCode = outcome === "INVALID_PROVIDER_RESULT" || outcome === "BUDGET_EXCEEDED" ? outcome : "PROVIDER_FAILED";
-        const conversation = state.conversations.find((item) => item.id === turn.conversationId)!;
-        transition("question", conversation.questions.find((item) => item.id === turn.questionId)!, waiting ? "WAITING_USER" : "FAILED");
-        conversation.queueStatus = "PAUSED";
-        if (!waiting) conversation.activeTurnId = null;
         emit(state, this.deps.clock, { type: waiting ? "RoleWaiting" : "RoleFailed", ...this.eventIds(current.turn, current.role) });
-        emit(state, this.deps.clock, { type: waiting ? "TurnWaiting" : "TurnFailed", conversationId: conversation.id, questionId: turn.questionId, turnId: turn.id });
-        emit(state, this.deps.clock, { type: "QueuePaused", conversationId: conversation.id });
+        pauseQueue(state, current.turn, this.deps.clock);
+        settleTurn(state, current.turn, this.deps.clock);
       });
     }
   }
