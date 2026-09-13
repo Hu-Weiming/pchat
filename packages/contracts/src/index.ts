@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export * from "./harness";
 export * from "./client";
+export * from "./windows";
 
 export const PCHAT_PROTOCOL_VERSION = 1 as const;
 

@@ -8,6 +8,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@pchat/client": "workspace:*",
     "@pchat/contracts": "workspace:*",
     "zod": "4.5.4"
   },

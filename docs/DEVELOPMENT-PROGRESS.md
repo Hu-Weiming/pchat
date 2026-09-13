@@ -26,7 +26,7 @@
 | P1 完整验收 | 已完成 | pnpm check:p1：14 文件、137 测试，业务/测试类型、依赖和无平台闭环全部通过；独立审计发现两处问题，修复后回归通过 |
 | P2–P5 优化 | 已完成 | 多人物工程前移 P3，千帆与安装工程收口 P5；真实内容评测保留独立门槛 |
 | P2 SQLite Store | 已完成 | 16项测试、workspace/测试类型通过：持久化、事务、独占、迁移、备份、真实进程中断恢复、FIFO/停止/书签与差异写入 |
-| P3 client 契约 | 进行中 | 14项测试通过，协议/输入/投影校验、幂等与相关性、书签/缺口、挂起退订；无平台VM通过client实际闭环；继续宿主衔接 |
+| P3 client 契约 | 进行中 | 15项client及12项Windows通道测试通过：版本2、相关性、书签/缺口、挂起退订、背压/缓冲上限；继续正式Host接线 |
 | P3 多人物与上下文 | 进行中 | 1–3人物、独立快照/调度、共享预算、停止与未知重做通过；SQLite v3及旧库迁移通过；上下文预算/检查点继续实施 |
 | P5 DeepSeek独立adapter | 进行中 | 41项离线ModelPort测试通过；网络/凭证Host与真实账户未接入 |
 | P5 千帆独立adapter | 进行中 | 44项离线RAGPort测试通过；严格确认清单/版本/hash核验；自动只读清单采集继续实施 |
@@ -66,6 +66,7 @@
 - SQLite v3 23项通过：固定非空v2旧库真实迁移、原commandId/回执幂等、关联未知尝试和事件保留、迁移失败回滚、2/3人物重开；独立role_contexts表避免流式草稿反复写长历史，保持原WAL增长门槛。
 - 01:21主任务复跑核心、client、SQLite、脚本与Windows通道，共23文件206测试通过；完整check:p1亦通过（162项及工作区/测试类型、依赖与无平台门禁）。通道6项涵盖回放、取消、背压与协议拒绝；正式Host接线和页面仍在开发。
 - 千帆44项离线RAGPort测试通过，01:25主任务复跑providers共85项通过：限定单知识库与文档、核验切片版本/内容hash、保留来源、取消与错误脱敏。官方search/详情时间格式示例差异仍需真实账户验证，不能宣称联网版本核验已通过；自动只读清单采集正在实施。
+- Windows私有通道及前端transport共12项通过：查询到订阅间隙补发、事件早于订阅回执、重复订阅、迟到监听清理、取消挂起订阅、宿主背压、1024事件缓冲上限和坏协议拒绝。补发从持久书签读取；超过缓冲明确要求刷新。01:26全测试类型检查尚被并行UI与context-budget新TDD测试阻断，不能宣称此时全量门禁通过。
 
 ## 本地环境
 
@@ -99,6 +100,7 @@
 
 12. `feat(harness): coordinate multiple roles with durable snapshots`：多人物执行、协议2与SQLite v3迁移；保留原P1停止、幂等和恢复约束。
 13. `feat(providers): retrieve Qianfan evidence against confirmed manifests`：独立RAG adapter及离线负面/取消/响应边界测试；不上传用户资料，不调用真实账户。
+14. `feat(desktop): bridge client commands and bookmarked events`：平台bridge注入、Windows通道与取消/重连协议；正式进程和Rust命令尚待装配。
 
 ## 待后续阶段验证的风险
 

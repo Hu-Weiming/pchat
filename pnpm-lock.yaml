@@ -26,6 +26,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@pchat/client':
+        specifier: workspace:*
+        version: link:../../packages/client
       '@pchat/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -60,6 +63,9 @@ importers:
 
   apps/runtime-windows:
     dependencies:
+      '@pchat/client':
+        specifier: workspace:*
+        version: link:../../packages/client
       '@pchat/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

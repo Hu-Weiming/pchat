@@ -12,7 +12,7 @@ if (!devRoot || !isAbsolute(devRoot)) {
 export default defineConfig({
   cacheDir: join(devRoot, "cache", "pchat", "vitest"),
   test: {
-    include: ["packages/**/*.test.ts", "scripts/**/*.test.ts"],
+    include: ["packages/**/*.test.ts", "scripts/**/*.test.ts", "apps/**/*.test.ts"],
     environment: "node",
     globals: false,
     coverage: {

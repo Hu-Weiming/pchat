@@ -10,6 +10,7 @@
     "tauri": "node ../../scripts/build-desktop.mjs"
   },
   "dependencies": {
+    "@pchat/client": "workspace:*",
     "@pchat/contracts": "workspace:*",
     "@tauri-apps/api": "2.11.1",
     "react": "19.2.8",
