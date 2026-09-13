@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ConversationProjectionSchema, DomainErrorSchema, EventCursorSchema, HarnessCommandSchema, HarnessEventSchema, HarnessQuerySchema, TurnProjectionSchema } from "./harness";
+import { ConversationProjectionSchema, DomainErrorSchema, EventCursorSchema, HarnessCommandSchema, HarnessEventSchema, HarnessQuerySchema, ThoughtStagePackageSchema, TurnProjectionSchema } from "./harness";
 
 export const HARNESS_PROTOCOL_VERSION = 1;
 const RequestId = z.string().min(1).max(200);
@@ -17,6 +17,7 @@ const queryResult = <T extends z.ZodType>(data: T) => z.discriminatedUnion("ok",
   z.strictObject({ ok: z.literal(false), lastEventSeq: EventCursorSchema, error: DomainErrorSchema }),
 ]);
 export const QueryResultSchemas = {
+  ListRoles: queryResult(z.array(ThoughtStagePackageSchema)),
   ListConversations: queryResult(z.array(ConversationProjectionSchema)),
   GetConversation: queryResult(ConversationProjectionSchema),
   GetTurn: queryResult(TurnProjectionSchema),

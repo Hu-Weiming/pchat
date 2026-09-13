@@ -53,6 +53,8 @@
 
 - Client 14项（逐步红→绿）：独立 requestId 重试同一 commandId、输入/响应校验、错误脱敏、事件连续性、退订和调用者输入快照。依赖检查扩展client新增10项负例，当前纯核心测试147项通过，另14项client测试通过。
 
+- P3 目录投影：新增 ListRoles（保留草稿/确认区分，草稿不能创建执行会话）与 Conversation.settings；两项公共查询测试先红再绿，149项纯核心回归、测试类型与无平台client闭环通过。
+
 ## 本地环境
 
 所有安装、测试和检查前在当前命令中加载仓库外的本地环境配置。TEMP/TMP、npm/pnpm 缓存、pnpm virtual store、Node 编译缓存与输出根目录都在用户指定 D 盘开发根目录。机器绝对路径不加入共享工具配置。测试工具通过 `PCHAT_DEV_ROOT` 派生缓存、覆盖率和构建输出路径。
@@ -71,7 +73,9 @@
 5. `df0388a fix(harness): fence cancelled and uncertain external attempts`：同步撤销外发权限、持久化失败停机、未发尝试释放预算与引用完整性；137项P1门禁通过。
 
 6. `a59806b docs: align delivery plan with Windows product acceptance`：统一进度入口并同步P2–P5交付计划。
-7. `feat(client): add validated portable harness transport`：版本化通信、client与InProcessTransport、事件生命周期、client跨端门禁。
+7. `e60d540 feat(client): add validated portable harness transport`：版本化通信、client与InProcessTransport、事件生命周期、client跨端门禁。
+
+8. `feat(harness): expose role catalog and conversation settings`：前端可读取可选资料包及当前设置，保留查询快照。
 
 ## 待后续阶段验证的风险
 

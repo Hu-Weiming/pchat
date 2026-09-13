@@ -37,7 +37,9 @@ describe("Harness command trust boundary", () => {
 
   it("validates read projections, command failures and safe event bookmarks", () => {
     expect(HarnessQuerySchema.parse({ type: "GetConversation", conversationId: "c" })).toEqual({ type: "GetConversation", conversationId: "c" });
-    const snapshot = { id: "c", title: "A discussion", queueStatus: "RUNNING", activeTurnId: null, questions: [], turnIds: [] };
+    const snapshot = { id: "c", title: "A discussion", queueStatus: "RUNNING", activeTurnId: null, questions: [], turnIds: [], settings: {
+      participantId: "kant-1785", knowledgeMode: "INFERENCE", model: { connectionId: "model-test", modelId: "fake", configRevision: "1" }, ragConnectionId: "rag-test",
+    } };
     expect(ConversationProjectionSchema.parse(snapshot)).toEqual(snapshot);
     expect(CommandReceiptSchema.parse({ ok: false, commandId: "bad", lastEventSeq: 0, error: { code: "INVALID_TRANSITION", message: "This action is not valid in the current state." } }).ok).toBe(false);
     const event = { type: "ConversationCreated", seq: 1, at: 0, conversationId: "c" };

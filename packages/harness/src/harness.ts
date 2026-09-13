@@ -17,6 +17,7 @@ export interface PchatHarness {
 function projectConversation(conversation: ConversationRecord): ConversationProjection {
   return {
     id: conversation.id, title: conversation.title, queueStatus: conversation.queueStatus,
+    settings: conversation.settings,
     activeTurnId: conversation.activeTurnId, turnIds: conversation.turnIds,
     questions: conversation.questions.map(({ id, text, status, turnId, submittedAt }) => ({ id, text, status, turnId, submittedAt })),
   };
@@ -148,6 +149,7 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
         if (coordinator.faulted) return { ok: false, error: failure("RUNTIME_UNAVAILABLE"), lastEventSeq: state.lastEventSeq };
         if (!parsed.success) return { ok: false, error: failure("INVALID_INPUT"), lastEventSeq: state.lastEventSeq };
         const request = parsed.data;
+        if (request.type === "ListRoles") return { ok: true, data: roles, lastEventSeq: state.lastEventSeq };
         if (request.type === "ListConversations") return { ok: true, data: state.conversations.map(projectConversation), lastEventSeq: state.lastEventSeq };
         if (request.type === "GetTurn") {
           const turn = state.turns.find((item) => item.id === request.turnId);

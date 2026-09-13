@@ -64,6 +64,7 @@ export const QuestionProjectionSchema = z.strictObject({
 });
 export const ConversationProjectionSchema = z.strictObject({
   id: Id, title: z.string(), queueStatus: z.enum(["RUNNING", "PAUSED"]), activeTurnId: Id.nullable(),
+  settings: ConversationSettingsSchema,
   questions: z.array(QuestionProjectionSchema), turnIds: z.array(Id),
 });
 export type ConversationProjection = z.infer<typeof ConversationProjectionSchema>;
@@ -117,11 +118,13 @@ export const ModelChunkSchema = z.discriminatedUnion("type", [
 ]);
 
 export const HarnessQuerySchema = z.discriminatedUnion("type", [
+  z.strictObject({ type: z.literal("ListRoles") }),
   z.strictObject({ type: z.literal("ListConversations") }),
   z.strictObject({ type: z.literal("GetConversation"), conversationId: Id }),
   z.strictObject({ type: z.literal("GetTurn"), turnId: Id }),
 ]);
 export interface QueryMap {
+  ListRoles: { request: { type: "ListRoles" }; response: ThoughtStagePackage[] };
   ListConversations: { request: { type: "ListConversations" }; response: ConversationProjection[] };
   GetConversation: { request: { type: "GetConversation"; conversationId: string }; response: ConversationProjection };
   GetTurn: { request: { type: "GetTurn"; turnId: string }; response: TurnProjection };
