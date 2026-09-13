@@ -27,7 +27,9 @@
 | P2–P5 优化 | 已完成 | 多人物工程前移 P3，千帆与安装工程收口 P5；真实内容评测保留独立门槛 |
 | P2 SQLite Store | 已完成 | 16项测试、workspace/测试类型通过：持久化、事务、独占、迁移、备份、真实进程中断恢复、FIFO/停止/书签与差异写入 |
 | P3 client 契约 | 进行中 | 14项测试通过，协议/输入/投影校验、幂等与相关性、书签/缺口、挂起退订；无平台VM通过client实际闭环；继续宿主衔接 |
-| P3 多人物与上下文、P4 UI、P5 接入和安装 | 待实施 | 依优化计划持续推进 |
+| P3 多人物与上下文 | 进行中 | 数组参与者契约、角色独立快照与调度、v3迁移正在TDD；共享类型处于本切片红绿循环 |
+| P5 DeepSeek独立adapter | 进行中 | 41项离线ModelPort测试通过；网络/凭证Host与真实账户未接入 |
+| P4 UI、P5 Host/千帆/安装 | 待实施 | 依优化计划持续推进 |
 
 ## TDD 记录
 
@@ -57,6 +59,8 @@
 
 - P2 Store 16项通过：真实子进程确认问题/草稿后强制结束并等待exit，重开保持未知尝试且不自动外发；显式重新生成保留关联。12轮8KB历史+16次checkpoint的WAL增长由26,384,480字节降至小于1MiB；仍完整读取/复制状态，超长历史CPU成本需后续测量。
 
+- DeepSeek ModelPort 41项离线测试通过：SSE/严格JSON提前流式正文、冻结配置、取消与迟到清理、终止原因、错误脱敏和大小限制；01:06由主任务复跑通过。独立包类型曾通过，当前共享core正在多人物迁移，统一类型门禁待收口。未用真实网络/Key。
+
 ## 本地环境
 
 所有安装、测试和检查前在当前命令中加载仓库外的本地环境配置。TEMP/TMP、npm/pnpm 缓存、pnpm virtual store、Node 编译缓存与输出根目录都在用户指定 D 盘开发根目录。机器绝对路径不加入共享工具配置。测试工具通过 `PCHAT_DEV_ROOT` 派生缓存、覆盖率和构建输出路径。
@@ -84,6 +88,8 @@
 9. `cc48b20 feat(storage): persist harness state with crash-safe SQLite ownership`：关系表、差异事务、在线迁移备份及真实进程恢复验收。
 
 10. `build: route desktop artifacts through the development output root`：构建/缓存路由、独立原生暂存与本机说明。
+
+11. `feat(providers): adapt DeepSeek streams behind secure network port`：仅通过connectionId/attemptId/结构化操作与测试网络交互；不代表真实接入验收。
 
 ## 待后续阶段验证的风险
 

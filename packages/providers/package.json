@@ -1,0 +1,10 @@
+{
+  "name": "@pchat/providers",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "check": "tsc --noEmit" },
+  "dependencies": { "@pchat/contracts": "workspace:*", "@pchat/harness": "workspace:*" },
+  "devDependencies": { "typescript": "7.0.2" }
+}
