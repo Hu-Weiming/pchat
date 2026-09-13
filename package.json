@@ -14,8 +14,9 @@
     "test": "vitest run --configLoader runner",
     "p0:runtime:build": "pnpm --filter @pchat/runtime-windows build",
     "p0:runtime:prepare-sidecar": "node scripts/prepare-runtime-sidecar.mjs",
-    "p0:desktop:dev": "pnpm p0:runtime:build && pnpm --filter @pchat/desktop tauri dev",
-    "p0:desktop:build": "pnpm p0:runtime:build && pnpm p0:runtime:prepare-sidecar && pnpm --filter @pchat/desktop tauri build"
+    "p0:desktop:dev": "node scripts/build-desktop.mjs dev",
+    "p0:desktop:build": "node scripts/build-desktop.mjs build",
+    "desktop:stage": "node scripts/build-desktop.mjs stage"
   },
   "devDependencies": {
     "@types/node": "24.10.1",

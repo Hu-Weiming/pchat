@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node24 --outfile=dist/main.mjs",
+    "build": "node ../../scripts/build-runtime.mjs",
     "check": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,4 +17,3 @@
     "typescript": "7.0.2"
   }
 }
-

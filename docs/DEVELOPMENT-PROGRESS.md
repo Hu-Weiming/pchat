@@ -61,6 +61,8 @@
 
 所有安装、测试和检查前在当前命令中加载仓库外的本地环境配置。TEMP/TMP、npm/pnpm 缓存、pnpm virtual store、Node 编译缓存与输出根目录都在用户指定 D 盘开发根目录。机器绝对路径不加入共享工具配置。测试工具通过 `PCHAT_DEV_ROOT` 派生缓存、覆盖率和构建输出路径。
 
+构建包装脚本现自动设置自身/子进程的输出与缓存环境，Runtime/前端产物及Tauri暂存工程均在开发根目录；详见 [构建说明](./BUILDING.md)。Runtime/前端构建、暂存、Tauri info与捆绑Node通信冒烟通过，尚未运行原生编译/安装。
+
 没有修改系统环境、C 盘系统目录或已安装软件配置。具体本地路径随执行在对话中逐项报告。
 
 ## 提交记录
@@ -79,7 +81,9 @@
 
 8. `feat(harness): expose role catalog and conversation settings`：前端可读取可选资料包及当前设置，保留查询快照。
 
-9. `feat(storage): persist harness state with crash-safe SQLite ownership`：关系表、差异事务、在线迁移备份及真实进程恢复验收。
+9. `cc48b20 feat(storage): persist harness state with crash-safe SQLite ownership`：关系表、差异事务、在线迁移备份及真实进程恢复验收。
+
+10. `build: route desktop artifacts through the development output root`：构建/缓存路由、独立原生暂存与本机说明。
 
 ## 待后续阶段验证的风险
 

@@ -6,6 +6,8 @@
 
 当前实施进度、验证证据与提交记录统一见 [`DEVELOPMENT-PROGRESS.md`](./DEVELOPMENT-PROGRESS.md)。P1 工作流与状态表见 [`P1-WORKFLOW.md`](./P1-WORKFLOW.md)，后续优化计划见 [`P2-P5-IMPLEMENTATION-PLAN.md`](./P2-P5-IMPLEMENTATION-PLAN.md)。
 
+本机构建命令、D 盘输出与缓存配置见 [`BUILDING.md`](./BUILDING.md)。
+
 ## 产品与架构
 
 - [`PCHAT-CURRENT-PRODUCT-CONSENSUS.md`](./PCHAT-CURRENT-PRODUCT-CONSENSUS.md)：已经确认的产品目标、范围和行为。

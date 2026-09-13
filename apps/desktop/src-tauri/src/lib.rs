@@ -80,11 +80,14 @@ impl RuntimeManager {
 
     #[cfg(debug_assertions)]
     fn dev_runtime_path() -> Result<PathBuf, String> {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("..")
-            .join("..")
-            .join("runtime-windows")
-            .join("dist")
+        let dev_root = std::env::var_os("PCHAT_DEV_ROOT")
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+            .ok_or("PCHAT_DEV_ROOT 必须指定构建输出的绝对目录")?;
+        let path = dev_root
+            .join("build")
+            .join("pchat")
+            .join("runtime")
             .join("main.mjs");
         if path.is_file() {
             Ok(path)
