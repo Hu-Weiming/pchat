@@ -29,7 +29,8 @@
 | P3 client 契约 | 进行中 | 14项测试通过，协议/输入/投影校验、幂等与相关性、书签/缺口、挂起退订；无平台VM通过client实际闭环；继续宿主衔接 |
 | P3 多人物与上下文 | 进行中 | 1–3人物、独立快照/调度、共享预算、停止与未知重做通过；SQLite v3及旧库迁移通过；上下文预算/检查点继续实施 |
 | P5 DeepSeek独立adapter | 进行中 | 41项离线ModelPort测试通过；网络/凭证Host与真实账户未接入 |
-| P4 UI、P5 Host/千帆/安装 | 待实施 | 依优化计划持续推进 |
+| P5 千帆独立adapter | 进行中 | 44项离线RAGPort测试通过；严格确认清单/版本/hash核验；自动只读清单采集继续实施 |
+| P4 UI、P5 Host/安装 | 进行中 | 正式Atelier页面、Windows client通道与Host装配开发中 |
 
 ## TDD 记录
 
@@ -64,6 +65,7 @@
 - P3 多人物12场景通过：2/3人物、PENDING、独立槽/共享预算、资料不足排除、保留已完成同伴、全员停止、单人物未知重做、恢复与FIFO。对照保存有效原答案列，不宣称已完成结论/前提/概念的语义分析。client协议升级为2，旧版本明确拒绝。
 - SQLite v3 23项通过：固定非空v2旧库真实迁移、原commandId/回执幂等、关联未知尝试和事件保留、迁移失败回滚、2/3人物重开；独立role_contexts表避免流式草稿反复写长历史，保持原WAL增长门槛。
 - 01:21主任务复跑核心、client、SQLite、脚本与Windows通道，共23文件206测试通过；完整check:p1亦通过（162项及工作区/测试类型、依赖与无平台门禁）。通道6项涵盖回放、取消、背压与协议拒绝；正式Host接线和页面仍在开发。
+- 千帆44项离线RAGPort测试通过，01:25主任务复跑providers共85项通过：限定单知识库与文档、核验切片版本/内容hash、保留来源、取消与错误脱敏。官方search/详情时间格式示例差异仍需真实账户验证，不能宣称联网版本核验已通过；自动只读清单采集正在实施。
 
 ## 本地环境
 
@@ -96,6 +98,7 @@
 11. `feat(providers): adapt DeepSeek streams behind secure network port`：仅通过connectionId/attemptId/结构化操作与测试网络交互；不代表真实接入验收。
 
 12. `feat(harness): coordinate multiple roles with durable snapshots`：多人物执行、协议2与SQLite v3迁移；保留原P1停止、幂等和恢复约束。
+13. `feat(providers): retrieve Qianfan evidence against confirmed manifests`：独立RAG adapter及离线负面/取消/响应边界测试；不上传用户资料，不调用真实账户。
 
 ## 待后续阶段验证的风险
 
