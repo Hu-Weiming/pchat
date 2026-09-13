@@ -1,6 +1,6 @@
 # Pchat 当前 Harness 架构与实施计划
 
-更新日期：2026-09-08。状态：**P0 技术验证已通过，下一步为 P1 Harness 编码**。本文件优化并取代旧版架构提案；P0 全程未调用付费接口，实测结果见 [P0-VALIDATION-REPORT.md](./P0-VALIDATION-REPORT.md)。
+更新日期：2026-09-14。状态：**P0 与 P1 已通过，按优化后的 P2–P5 计划持续开发至 Windows 产品验收**。本文件优化并取代旧版架构提案；P0 全程未调用付费接口，实测结果见 [P0-VALIDATION-REPORT.md](./P0-VALIDATION-REPORT.md)。
 
 强制运行规则见 [RUNTIME-INVARIANTS.md](./RUNTIME-INVARIANTS.md)，安全范围与验证要求见 [PCHAT-SECURITY-THREAT-MODEL.md](./PCHAT-SECURITY-THREAT-MODEL.md)。
 
@@ -242,7 +242,7 @@ manifest
 | Seam | 首个生产 adapter | 测试/未来 adapter |
 | --- | --- | --- |
 | ModelPort | DeepSeek | FakeModel；以后 OpenAI 等 |
-| RAGPort | 待选知识库 | FakeRAG；以后其他供应商 |
+| RAGPort | 百度千帆独立检索 | FakeRAG；以后开发机或其他供应商 |
 | RuntimeStore | SQLite | InMemoryStore |
 | Transport | TauriIpcTransport + 私有 Host 通道 | InProcessTransport；以后 Android HostTransport / BrowserHttpTransport |
 | CredentialVault | Windows 安全凭证 adapter | FakeVault；以后 Android adapter |
@@ -430,69 +430,22 @@ packages 数量由真实 seams 决定。实现中若某个 adapter 只有少量�
 
 完成标准：不启动 React 或 Tauri，也能跑通单人物完整轮次。
 
-### P2：SQLite、FIFO 与恢复
+### P2–P5：优化后的实施顺序
 
-- 建立 SessionLedger、问题、轮次、RoleRun、依据、检查点和 event journal。
-- 实现按 Conversation 的事务领取、撤回、停止、恢复和迟到事件隔离；不同 Conversation 由全局调度器控制并发。
-- 固化 SQLite 连接设置、schema_version、migration table、事务边界、迁移前一致性备份与恢复流程。
+用户已授权优化后持续开发至可操作的 Windows 产品验收。详细依赖、验证与风险以 [P2–P5 实施计划](./P2-P5-IMPLEMENTATION-PLAN.md) 为准，当前进度统一见 [DEVELOPMENT-PROGRESS.md](./DEVELOPMENT-PROGRESS.md)。
 
-完成标准：A 运行时提交 B/C，A 看不到 B/C；崩溃恢复不得自动重新执行接收状态未知的外部调用，并能提示用户确认是否重新生成。
+- **P2 SQLite 持久化**：实现现有 RuntimeStore，复用 P1 队列和恢复；验证事务、独占写入、迁移备份、真实进程中断及未知调用不自动重试。
+- **P3 执行与 client 契约**：上下文预算与检查点、1–3 人物和受限对照、角色/连接元数据、版本化 dispatch/query/events 与重连。
+- **P4 Atelier UI**：完整会话、人物与模式选择、流式草稿、队列、停止/恢复/重新生成、依据抽屉和连接设置；UI 只依赖 PchatClient。
+- **P5 安全接入及 Windows 验收**：DeepSeek 与百度千帆 adapters、CredentialVault、受限网络、取消/限流/脱敏、安装升级和完整操作验收。
 
-### P3：上下文与 Fake 闭环
+原 P7 多人物工程前移至 P3，原 P6 千帆接口工程前移至 P5，原 P9 本机安装工程前移至 P5。这样正式 UI 建立在完整工作流上，供应商接入共同使用同一安全网络与凭证能力。
 
-- 完成 ContextAssembler、可重建摘要与 ModelExecutionPolicy。
-- 使用 FakeModel、FakeRAG 验证资料隔离、上下文冻结、预算优先级和草稿检查点。
+### 真实内容与分发门槛
 
-完成标准：无需真实模型或正式 UI，能够证明排队中的新问题不进入当前轮次，人物不读取其他人物资料，压缩不编造用户观点。
+真实 Key 和哲学资料尚未提供。工程测试使用替身与受控响应，不能据此宣布在线调用、费用、真实召回和论断支持度已通过。用户填写 Key、绑定资料后，先验证 1–2 个经确认的资料包，再分批评测计划中的约二十个思想阶段。具体名单与内容由用户决定。
 
-### P4：Atelier Web UI 与 Tauri Host
-
-- 将原型 design tokens 与布局迁移到 React。
-- UI 只依赖 PchatClient，不直接访问数据库或 provider。
-- 完成 Tauri 默认窗口和托盘。
-
-完成标准：WebView 与测试 client 通过同一 Harness 协议操作，行为一致。
-
-### P5：DeepSeek 与安全连接
-
-- 实现 ModelPort 的 DeepSeek adapter。
-- 完成 CredentialVault、SecureTransport、流、取消、超时、限流、未知用量与脱敏日志。
-- SecureTransport 只接受 connectionId 和结构化供应商请求，由 Host 校验允许的供应商端点并注入凭证。
-- 模型与端点属于 Connection，不写入人物包。
-
-完成标准：本机最小真实调用成功；Key 不出现在 UI、Harness 协议、SQLite、日志或测试快照。
-
-### P6：真实 RAG 与证据
-
-- 确定知识库后实现 RAGPort adapter。
-- 先接入 1–2 个经确认的 ThoughtStagePackage。
-- 验证原典/研究资料、空结果、缺元数据、引文降级和包含实际依据文本及版本信息的历史依据快照。
-- 用真实 token 统计校准 ModelExecutionPolicy 与 Checkpoint。
-
-完成标准：单人物真实 RAG 闭环，回答能够区分原典陈述、推演和拟构。
-
-### P7：多人物与对照
-
-- 复用同一 Runtime 执行 2–3 个 RoleRun。
-- 一个问题只创建一个 Turn，每位人物创建一个 RoleRun；`StopTurn` 停止该 Turn 下所有未完成 RoleRun。
-- 新人物看到讨论语境，但不能继承其他人的证据。
-- 至少两个有效回答后才产生 Comparison。
-
-完成标准：无串库、冒名补答、模式污染和伪对照；并发与费用预算生效。
-
-### P8：内容评测
-
-- 分批接入约 20 个思想阶段，逐包记录准备、确认和验收状态。
-- 分别评测检索召回、论断支持度、引文完整性、上下文压缩损失和阶段混淆。
-
-完成标准：首批资料包通过检索召回、论断支持度、引文完整性、上下文压缩损失和阶段混淆的发布门槛。
-
-### P9：Windows 打包、升级与发布
-
-- 构建 NSIS 测试安装包，验证安装、升级、四类版本匹配、数据库迁移、显式退出和卸载数据策略。
-- 在干净 Windows 环境、升级环境和模拟迁移失败环境完成冒烟测试。
-
-发布阻断项：串库、虚构出处、Key 泄漏、Tauri 权限越界、恢复流程自动重试状态未知的付费调用、孤儿后台进程和已确认问题丢失。
+扩大分发前仍需代码签名、干净 Windows 与升级环境验证，以及召回、论断支持度、引文完整性、上下文压缩损失和阶段混淆评测。串库、虚构出处、Key 泄漏、权限越界、未知调用自动重试、孤儿进程和已确认问题丢失均为发布阻断项。
 
 ### Windows 后的 Android 阶段
 
@@ -549,7 +502,7 @@ Android 复用的是 contracts、PchatHarness 领域规则与可跨端 React UI�
 7. 使用小型 pnpm workspace 支持真实的多宿主与 adapter。
 8. Android 复用逻辑架构，但不保证复用 Windows daemon 进程形态。
 
-架构审查与 P0 六项技术验证均已完成，下一步进入 P1 Harness 编码。除非实现证据证明当前路线不可行，否则不再增加微服务、完整 Event Sourcing、复杂 DI 框架、插件系统或其他预想扩展。若后续 Windows sidecar 或 HostPort 出现实测问题，保留相同 Harness interface 并替换部署 adapter，不推翻领域核心。
+架构审查、P0 六项技术验证与 P1 验收均已完成，继续推进 P2–P5。除非实现证据证明当前路线不可行，否则不再增加微服务、完整 Event Sourcing、复杂 DI 框架、插件系统或其他预想扩展。若后续 Windows sidecar 或 HostPort 出现实测问题，保留相同 Harness interface 并替换部署 adapter，不推翻领域核心。
 
 ## 18. 官方事实依据
 

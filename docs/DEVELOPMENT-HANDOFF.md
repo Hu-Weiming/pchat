@@ -1,20 +1,20 @@
 # Pchat 正式开发交接
 
-更新日期：2026-09-12
+更新日期：2026-09-14
 
 仓库：<https://github.com/Hu-Weiming/pchat>
 
 当前分支：`main`
 
-当前阶段：P0 已完成；下一步实施 P1 Contracts 与 Headless Harness。
+当前阶段：P0、P1 已完成；用户已授权优化并持续实施 P2–P5，交付可操作的 Windows 产品验收。唯一进度入口为 [DEVELOPMENT-PROGRESS.md](./DEVELOPMENT-PROGRESS.md)，具体顺序见 [P2-P5-IMPLEMENTATION-PLAN.md](./P2-P5-IMPLEMENTATION-PLAN.md)。
 
 ## 1. 接管时先确认
 
 1. 阅读本文以及文末列出的权威文档。
 2. 执行 `git status --short --branch`，确认工作区状态；保留用户已有修改。
 3. 在任何安装、构建或测试前，将本次进程使用的 `TEMP`、`TMP`、包缓存和构建目录指向 `D:\Dev` 下的专用目录。
-4. 先执行 `pnpm check` 验证现有基线，再开始 P1。
-5. P1 完成标准是纯 Harness 垂直切片通过测试；不要提前接入真实 DeepSeek、真实 RAG 或正式 UI。
+4. 先执行 `pnpm check` 验证现有基线，再推进当前阶段；P1 完整门禁为 `pnpm check:p1`。
+5. P1 测试仍保持纯 Harness 与替身。按优化计划依次增加 SQLite、client、多人物与上下文、正式 UI、安全供应商 adapter 和 Windows 验收，不把未提供 Key/资料的在线结果记为通过。
 
 完成上述检查，且现有类型检查通过后，才视为接管完成。
 
@@ -51,7 +51,7 @@ React WebView
   → Rust Host
   → 私有 stdin/stdout
   → 捆绑 Node Runtime
-  → PchatHarness（P1 开始实现）
+  → PchatHarness
   → SQLite / Model / RAG adapters
 ```
 
@@ -119,13 +119,15 @@ interface 包括类型、状态约束、排序、错误和幂等语义。内部�
 ```text
 apps/desktop/          P0 React 诊断界面与 Tauri Rust Host
 apps/runtime-windows/  P0 Node Runtime、SQLite 与私有协议 probe
-packages/contracts/    P0 probe 协议和 Zod schema
+packages/contracts/    P0 probe 与正式 Harness 协议、投影和 Zod schema
+packages/harness/      P1 纯 TypeScript 领域核心与 ports
+packages/testing/      InMemoryStore、可控模型/检索替身、时钟与 ID
 prototypes/            已确认的 Atelier 静态交互原型
 docs/                  产品、架构、安全、验证和资料审计
 scripts/               Node sidecar 打包准备脚本
 ```
 
-当前代码只证明以下能力可行：
+P0 代码已证明以下能力可行：
 
 - Tauri 启停并清理捆绑 Node Runtime；
 - Tauri IPC 和 stdin/stdout 请求、响应、流式事件；
@@ -134,11 +136,11 @@ scripts/               Node sidecar 打包准备脚本
 - `connectionId`、供应商允许清单和假密钥不泄露结构；
 - NSIS 构建与安装。
 
-`apps/desktop/src/App.tsx` 是 P0 诊断界面，不是正式产品 UI。`packages/contracts` 当前只有 probe 协议，不是正式 Harness 契约。真实模型、真实 RAG、正式数据库 schema、人物资料包与完整会话状态机均尚未实现。仓库中没有真实 API Key。
+P1 已实现正式 Harness 契约、单人物轮次、FIFO、幂等、停止/恢复、快照和事件书签；完整门禁137项测试及类型、依赖、无平台闭环通过。`apps/desktop/src/App.tsx` 仍是 P0 诊断界面。正式 SQLite schema、生产模型/RAG adapter、正式 UI 和人工确认的人物内容待后续阶段实现。仓库中没有真实 API Key。
 
 构建产物、`node_modules`、数据库、临时目录、捆绑 Node 二进制和 Tauri 生成 schema 已被 `.gitignore` 排除。历史构建缓存可能仍占用本地磁盘，但不属于 Git 内容。
 
-## 7. P1 实施任务
+## 7. P1 验收基线（已通过，后续必须保持）
 
 P1 应增加这些 package：
 
@@ -201,7 +203,7 @@ D:\Dev\logs\pchat
 
 ## 10. 已知风险和未决项
 
-- 云端 RAG 供应商尚未选定；接入前必须用真实哲学资料做召回与引用评测。
+- 首个 RAG adapter 已由用户选定为百度千帆：用户在控制台上传文档，Pchat 检索；未来开发机 RAG 通过同一 port 扩展，本次不实现。真实哲学资料尚未准备，召回与引用评测仍待完成。
 - DeepSeek 是首个模型 adapter，但型号、参数、端点和 Key 均不能写进领域核心或人物包。
 - CredentialVault 目前只有假凭证边界验证，真实 Windows 凭证保存尚待实现。
 - P0 证明 sidecar 可打包和管理，不等于业务状态机、付费调用恢复和长期升级已经可靠。
@@ -228,4 +230,4 @@ D:\Dev\logs\pchat
 
 可将下面内容直接作为新开发对话的第一条消息：
 
-> 请接管 `D:\Pchat` 的 Pchat Agent 项目，进入正式开发。先完整阅读根目录 `AGENTS.md` 和 `docs/DEVELOPMENT-HANDOFF.md`，再按其中的权威文档顺序核对当前实现。当前目标只完成 P1 Contracts 与 Headless Harness：使用纯 TypeScript、测试替身和小型深模块 interface 跑通单人物轮次、FIFO、停止、恢复、幂等、查询投影与事件书签。不要接入真实模型、RAG 或正式 UI。所有构建输出、缓存、日志和临时文件放到 `D:\Dev`，修改配置后逐项报告。实施完成后运行交接文档规定的验收，并提交结果。
+> 请继续 `D:\Pchat` 的正式开发。先完整阅读根目录 `AGENTS.md` 和 `docs/DEVELOPMENT-HANDOFF.md`，再按权威顺序核对实现及 `docs/DEVELOPMENT-PROGRESS.md`。保持 P1 验收通过，按 `docs/P2-P5-IMPLEMENTATION-PLAN.md` 持续开发至可操作的 Windows 产品验收。首个模型 adapter 为 DeepSeek，首个 RAG adapter 为百度千帆独立检索；用户稍后填写 Key 和准备知识库，在线及内容评测不得虚报通过。所有构建输出、缓存、日志和临时文件放到 `D:\Dev`，修改配置后逐项报告。采用 TDD、完整验证并分步提交到本地 Git，不推送。

@@ -2,9 +2,9 @@
 
 本目录只保留当前有效的设计、验证和资料审计文档。文档出现局部重复时，以下职责边界决定哪一份具有权威性。
 
-正式开发从 [`DEVELOPMENT-HANDOFF.md`](./DEVELOPMENT-HANDOFF.md) 开始；该文档说明当前实现、P1 任务、验收条件和开发环境约束。
+正式开发从 [`DEVELOPMENT-HANDOFF.md`](./DEVELOPMENT-HANDOFF.md) 开始；该文档说明当前实现、阶段任务、验收条件和开发环境约束。
 
-P1 当前实施进度、验证证据与提交记录统一见 [`P1-PROGRESS.md`](./P1-PROGRESS.md)，工作流细化与状态表见 [`P1-WORKFLOW.md`](./P1-WORKFLOW.md)。
+当前实施进度、验证证据与提交记录统一见 [`DEVELOPMENT-PROGRESS.md`](./DEVELOPMENT-PROGRESS.md)。P1 工作流与状态表见 [`P1-WORKFLOW.md`](./P1-WORKFLOW.md)，后续优化计划见 [`P2-P5-IMPLEMENTATION-PLAN.md`](./P2-P5-IMPLEMENTATION-PLAN.md)。
 
 ## 产品与架构
 
