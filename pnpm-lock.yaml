@@ -103,6 +103,25 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
+  packages/storage-sqlite:
+    dependencies:
+      '@pchat/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@pchat/harness':
+        specifier: workspace:*
+        version: link:../harness
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
   packages/testing:
     dependencies:
       '@pchat/contracts':

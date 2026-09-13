@@ -1,0 +1,10 @@
+{
+  "name": "@pchat/storage-sqlite",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "check": "tsc --noEmit" },
+  "dependencies": { "@pchat/harness": "workspace:*", "@pchat/contracts": "workspace:*" },
+  "devDependencies": { "typescript": "7.0.2", "@types/node": "24.10.1", "esbuild": "0.28.2" }
+}
