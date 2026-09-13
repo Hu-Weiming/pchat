@@ -4,6 +4,10 @@ import { EventCursorSchema } from "./harness";
 
 export const WINDOWS_PROTOCOL_VERSION = 2;
 export const WindowsRequestIdSchema = z.string().min(1).max(200);
+export const WindowsShutdownRequestSchema = z.strictObject({
+  protocolVersion: z.literal(WINDOWS_PROTOCOL_VERSION), requestId: WindowsRequestIdSchema,
+  method: z.literal("runtime.shutdown"), params: z.strictObject({}),
+});
 const requestBase = { protocolVersion: z.literal(WINDOWS_PROTOCOL_VERSION), requestId: WindowsRequestIdSchema };
 export const WindowsRuntimeRequestSchema = z.discriminatedUnion("method", [
   z.strictObject({ ...requestBase, method: z.literal("harness.request"), params: ClientRequestSchema }),

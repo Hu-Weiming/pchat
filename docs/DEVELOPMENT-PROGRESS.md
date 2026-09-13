@@ -67,6 +67,7 @@
 - 01:21主任务复跑核心、client、SQLite、脚本与Windows通道，共23文件206测试通过；完整check:p1亦通过（162项及工作区/测试类型、依赖与无平台门禁）。通道6项涵盖回放、取消、背压与协议拒绝；正式Host接线和页面仍在开发。
 - 千帆44项离线RAGPort测试通过，01:25主任务复跑providers共85项通过：限定单知识库与文档、核验切片版本/内容hash、保留来源、取消与错误脱敏。官方search/详情时间格式示例差异仍需真实账户验证，不能宣称联网版本核验已通过；自动只读清单采集正在实施。
 - Windows私有通道及前端transport共12项通过：查询到订阅间隙补发、事件早于订阅回执、重复订阅、迟到监听清理、取消挂起订阅、宿主背压、1024事件缓冲上限和坏协议拒绝。补发从持久书签读取；超过缓冲明确要求刷新。01:26全测试类型检查尚被并行UI与context-budget新TDD测试阻断，不能宣称此时全量门禁通过。
+- Runtime私有会话增加7项：分片UTF-8、暂停提交后再确认退出、宿主管道丢失保留UNKNOWN、1MiB帧和64个待处理请求上限、暂停写入失败不虚报成功、坏编码/截断输入停止。01:35 Runtime包类型检查及全部19项桌面通信测试通过。Rust原生暂存基线cargo check通过（1m48s）；尚未装配正式main/Host，不能替代最终安装验收。
 
 ## 本地环境
 
@@ -101,6 +102,7 @@
 12. `feat(harness): coordinate multiple roles with durable snapshots`：多人物执行、协议2与SQLite v3迁移；保留原P1停止、幂等和恢复约束。
 13. `feat(providers): retrieve Qianfan evidence against confirmed manifests`：独立RAG adapter及离线负面/取消/响应边界测试；不上传用户资料，不调用真实账户。
 14. `feat(desktop): bridge client commands and bookmarked events`：平台bridge注入、Windows通道与取消/重连协议；正式进程和Rust命令尚待装配。
+15. `feat(runtime): suspend durably across private pipe shutdown`：有界管道解析、并发请求与持久暂停生命周期；后续由正式启动入口装配。
 
 ## 待后续阶段验证的风险
 
