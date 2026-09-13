@@ -50,10 +50,10 @@ describe("InMemoryStore through RuntimeStore", () => {
     });
     await store.transaction((state) => { state.lastEventSeq = 1; });
     await expect(store.transaction(() => { throw new Error("rollback"); })).rejects.toThrow();
-    expect(await Promise.all(observations)).toEqual([1]);
+    expect(await Promise.all(observations)).toEqual([0, 1]);
     unsubscribe();
     await store.transaction((state) => { state.lastEventSeq = 2; });
-    expect(observations).toHaveLength(1);
+    expect(observations).toHaveLength(2);
     expect(await store.read((state) => state.lastEventSeq)).toBe(2);
   });
 

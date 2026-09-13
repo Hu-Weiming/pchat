@@ -64,10 +64,18 @@ export interface RuntimeState {
 /** Callbacks are synchronous; no adapter I/O is allowed inside a transaction.
  * Adapters isolate both input and output references, serialize writers, roll back
  * exceptions, and notify only after commit. A notification is only a wake-up. */
+export interface CommitNotice {
+  epoch: number;
+  suspended: boolean;
+  runnableTurnIds: readonly string[];
+}
 export interface RuntimeStore {
   read<T>(reader: (snapshot: Readonly<RuntimeState>) => T): Promise<T>;
   transaction<T>(writer: (draft: RuntimeState) => T): Promise<T>;
-  subscribe(listener: () => void): () => void;
+  /** Synchronously send the current notice on subscribe, then after every
+   * committed write and before its Promise resolves. This revokes execution
+   * permission independently of delayed transaction acknowledgements. */
+  subscribe(listener: (notice: CommitNotice) => void): () => void;
 }
 export interface HarnessDependencies {
   store: RuntimeStore;

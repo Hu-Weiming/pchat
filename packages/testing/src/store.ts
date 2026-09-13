@@ -1,8 +1,8 @@
-import type { RuntimeState, RuntimeStore } from "@pchat/harness";
+import type { CommitNotice, RuntimeState, RuntimeStore } from "@pchat/harness";
 import { clone } from "./clone";
 
 export class InMemoryStore implements RuntimeStore {
-  private readonly listeners = new Set<() => void>();
+  private readonly listeners = new Set<(notice: CommitNotice) => void>();
   private state: RuntimeState = {
     epoch: 0, suspended: false, lastEventSeq: 0,
     conversations: [], turns: [], commands: [], events: [],
@@ -22,13 +22,18 @@ export class InMemoryStore implements RuntimeStore {
     const isolatedResult = clone(result);
     this.state = clone(draft);
     for (const listener of [...this.listeners]) {
-      try { listener(); } catch { /* Notifications cannot roll back a commit. */ }
+      try { listener(this.notice()); } catch { /* Notifications cannot roll back a commit. */ }
     }
     return isolatedResult;
   }
 
-  subscribe(listener: () => void): () => void {
+  private notice(): CommitNotice {
+    return { epoch: this.state.epoch, suspended: this.state.suspended, runnableTurnIds: this.state.turns.filter((turn) => turn.status === "RUNNING").map((turn) => turn.id) };
+  }
+
+  subscribe(listener: (notice: CommitNotice) => void): () => void {
     this.listeners.add(listener);
+    try { listener(this.notice()); } catch { /* Initial notification has the same isolation as subsequent commits. */ }
     return () => { this.listeners.delete(listener); };
   }
 }

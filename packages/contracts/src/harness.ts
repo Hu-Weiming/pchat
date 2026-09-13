@@ -27,6 +27,7 @@ export const HarnessCommandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("RegenerateRole"), commandId: Id, roleRunId: Id }),
   z.strictObject({ type: z.literal("SuspendRuntime"), commandId: Id }),
   z.strictObject({ type: z.literal("WithdrawQuestion"), commandId: Id, questionId: Id }),
+  z.strictObject({ type: z.literal("ChangeParticipants"), commandId: Id, conversationId: Id, participantId: Id }),
 ]);
 export type KnowledgeMode = z.infer<typeof KnowledgeModeSchema>;
 export type ModelBinding = z.infer<typeof ModelBindingSchema>;
@@ -48,7 +49,7 @@ const error = <T extends string>(code: T) => z.strictObject({ code: z.literal(co
 export const DomainErrorSchema = z.discriminatedUnion("code", [
   error("INVALID_INPUT"), error("NOT_FOUND"), error("COMMAND_CONFLICT"), error("INVALID_TRANSITION"),
   error("QUEUE_BLOCKED"), error("RUNTIME_REPLACED"), error("BUDGET_EXCEEDED"),
-  error("PROVIDER_FAILED"), error("INVALID_PROVIDER_RESULT"), error("CAPACITY_EXCEEDED"),
+  error("PROVIDER_FAILED"), error("INVALID_PROVIDER_RESULT"), error("CAPACITY_EXCEEDED"), error("RUNTIME_UNAVAILABLE"),
 ]);
 export type DomainError = z.infer<typeof DomainErrorSchema>;
 export const CommandReceiptSchema = z.discriminatedUnion("ok", [

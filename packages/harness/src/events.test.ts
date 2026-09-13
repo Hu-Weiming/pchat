@@ -30,7 +30,7 @@ class ObservedStore implements RuntimeStore {
     return this.delegate.transaction(writer);
   }
 
-  subscribe(listener: () => void): () => void {
+  subscribe(listener: Parameters<RuntimeStore["subscribe"]>[0]): () => void {
     this.subscriptions++;
     const unsubscribe = this.delegate.subscribe(listener);
     return () => { this.subscriptions--; unsubscribe(); };
@@ -41,7 +41,7 @@ async function fixture() {
   const dependencies = createTestDependencies();
   const store = new ObservedStore(dependencies.store);
   const harness = await createHarness({ ...dependencies, store });
-  return { harness, store };
+  return { harness, store, baselineSubscriptions: store.subscriptions };
 }
 
 describe("query bookmarks and event subscriptions", () => {
@@ -76,7 +76,7 @@ describe("query bookmarks and event subscriptions", () => {
   });
 
   it("observes a commit after an empty journal scan and before entering the wait", async () => {
-    const { harness, store } = await fixture();
+    const { harness, store, baselineSubscriptions } = await fixture();
     const snapshot = await harness.query({ type: "ListConversations" });
     const iterator = harness.events(snapshot.lastEventSeq)[Symbol.asyncIterator]();
     store.afterRead = async () => { await createConversation(harness, "between-scan-and-wait"); };
@@ -102,7 +102,7 @@ describe("query bookmarks and event subscriptions", () => {
   });
 
   it("return ends pending reads and queued next calls without waiting for storage", async () => {
-    const { harness, store } = await fixture();
+    const { harness, store, baselineSubscriptions } = await fixture();
     let releaseRead = () => {};
     const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
     let readIsHeld = false;
@@ -118,14 +118,14 @@ describe("query bookmarks and event subscriptions", () => {
       await iterator.return?.();
       await until(() => settled);
       expect(await pending).toEqual([{ done: true, value: undefined }, { done: true, value: undefined }]);
-      expect(store.subscriptions).toBe(0);
+      expect(store.subscriptions).toBe(baselineSubscriptions);
     } finally {
       releaseRead();
     }
   });
 
   it("repeated return calls release a waiting subscription exactly once", async () => {
-    const { harness, store } = await fixture();
+    const { harness, store, baselineSubscriptions } = await fixture();
     const iterator = harness.events()[Symbol.asyncIterator]();
     const pending = iterator.next();
     await until(() => store.reads > 0);
@@ -133,18 +133,18 @@ describe("query bookmarks and event subscriptions", () => {
     await iterator.return?.();
     expect(await pending).toEqual({ done: true, value: undefined });
     expect(await iterator.next()).toEqual({ done: true, value: undefined });
-    expect(store.subscriptions).toBe(0);
+    expect(store.subscriptions).toBe(baselineSubscriptions);
   });
 
   it("closes and releases its listener when reading the journal fails", async () => {
-    const { harness, store } = await fixture();
+    const { harness, store, baselineSubscriptions } = await fixture();
     store.readFailure = new Error("Journal unavailable");
     const iterator = harness.events()[Symbol.asyncIterator]();
     const rejected = expect(iterator.next()).rejects.toThrow("Journal unavailable");
     const queued = iterator.next();
     try {
       await rejected;
-      expect(store.subscriptions).toBe(0);
+      expect(store.subscriptions).toBe(baselineSubscriptions);
       expect(await queued).toEqual({ done: true, value: undefined });
       expect(await iterator.next()).toEqual({ done: true, value: undefined });
     } finally {
@@ -153,7 +153,7 @@ describe("query bookmarks and event subscriptions", () => {
   });
 
   it("rejects a cursor ahead of the committed journal so callers can query again", async () => {
-    const { harness, store } = await fixture();
+    const { harness, store, baselineSubscriptions } = await fixture();
     await createConversation(harness, "first");
     const snapshot = await harness.query({ type: "ListConversations" });
     const iterator = harness.events(snapshot.lastEventSeq + 1)[Symbol.asyncIterator]();
@@ -165,7 +165,7 @@ describe("query bookmarks and event subscriptions", () => {
     try {
       await until(() => finished);
       expect(await result).toMatchObject({ ok: false, error: expect.any(RangeError) });
-      expect(store.subscriptions).toBe(0);
+      expect(store.subscriptions).toBe(baselineSubscriptions);
       expect(await iterator.next()).toEqual({ done: true, value: undefined });
     } finally {
       await iterator.return?.();

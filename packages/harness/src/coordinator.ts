@@ -15,9 +15,20 @@ export class TurnCoordinator {
   private dirty = false;
   private readonly running = new Map<string, CancellationToken>();
   private readonly drafts = new Map<string, { attemptId: string; text: string }>();
-  constructor(private readonly deps: HarnessDependencies, private readonly epoch: number) {}
+  private retired = false;
+  faulted = false;
+  private unsubscribe = () => {};
+  constructor(private readonly deps: HarnessDependencies, private readonly epoch: number) {
+    const unsubscribe = deps.store.subscribe((notice) => {
+      if (notice.epoch !== epoch) { this.retired = true; this.cancelAll(); this.unsubscribe(); return }
+      for (const [turnId, token] of this.running) if (notice.suspended || !notice.runnableTurnIds.includes(turnId)) token.cancel();
+    });
+    this.unsubscribe = unsubscribe;
+    if (this.retired) unsubscribe();
+  }
 
   wake(): void {
+    if (this.retired || this.faulted) return;
     this.dirty = true;
     if (this.scheduled) return;
     this.scheduled = true;
@@ -30,11 +41,15 @@ export class TurnCoordinator {
             const claimed = turn;
             const token = new CancellationToken();
             this.running.set(claimed.id, token);
-            void this.execute(claimed, token).finally(() => { this.running.delete(claimed.id); this.wake() });
+            void this.execute(claimed, token).catch(() => { this.faulted = true; this.cancelAll() }).finally(() => {
+              this.running.delete(claimed.id);
+              for (const role of claimed.roleRuns) this.drafts.delete(role.id);
+              this.wake();
+            });
           }
         }
       } finally { this.scheduled = false }
-    }).catch(() => { this.scheduled = false });
+    }).catch(() => { this.scheduled = false; this.faulted = true; this.cancelAll() });
   }
 
   cancel(turnId: string): void { this.running.get(turnId)?.cancel() }
@@ -52,7 +67,7 @@ export class TurnCoordinator {
 
   private claim(): Promise<TurnRecord | null> {
     return this.deps.store.transaction((state) => {
-      if (state.epoch !== this.epoch || state.suspended) return null;
+      if (this.faulted || this.retired || state.epoch !== this.epoch || state.suspended) return null;
       // P1 has one role and at most one external request per executing turn.
       // Reserve its slot through the whole execution, including cancellation drain.
       if (this.running.size >= this.deps.limits.maxExternalCalls) return null;
@@ -91,7 +106,7 @@ export class TurnCoordinator {
   }
 
   private active(state: RuntimeState, turnId: string, roleId: string) {
-    if (state.epoch !== this.epoch || state.suspended) return null;
+    if (this.faulted || this.retired || state.epoch !== this.epoch || state.suspended) return null;
     const turn = state.turns.find((item) => item.id === turnId && item.status === "RUNNING");
     const role = turn?.roleRuns.find((item) => item.id === roleId && (item.status === "RETRIEVING" || item.status === "GENERATING"));
     return turn && role ? { turn, role } : null;
@@ -152,7 +167,7 @@ export class TurnCoordinator {
       let evidence = role.evidence;
       if (role.status === "RETRIEVING") {
         const attempt = await this.prepare(turn.id, role.id, "RAG");
-        if (!attempt) return;
+        if (!attempt || token.cancelled || this.retired) return;
         const participant = turn.context.participant;
         const result = RetrievalResultSchema.safeParse(await this.deps.rag.retrieve({
           attemptId: attempt.id, roleRunId: role.id, connectionId: turn.context.settings.ragConnectionId,
@@ -177,7 +192,7 @@ export class TurnCoordinator {
         return;
       }
       const attempt = await this.prepare(turn.id, role.id, "MODEL");
-      if (!attempt) return;
+      if (!attempt || token.cancelled || this.retired) return;
       let draft = "";
       let checkpointLength = 0;
       for await (const raw of this.deps.model.generate(copy({ attemptId: attempt.id, roleRunId: role.id, context: turn.context, evidence }), token)) {
@@ -211,7 +226,8 @@ export class TurnCoordinator {
         this.checkpoint(state, current.turn);
         const outcome = error instanceof ExecutionFailure ? error.outcome : "OUTCOME_UNKNOWN";
         const attempt = current.role.attempts.at(-1);
-        if (attempt?.status === "IN_FLIGHT") transition("attempt", attempt, outcome === "OUTCOME_UNKNOWN" ? "OUTCOME_UNKNOWN" : "FAILED");
+        if (attempt?.status === "PREPARED") transition("attempt", attempt, "CANCELLED");
+        else if (attempt?.status === "IN_FLIGHT") transition("attempt", attempt, outcome === "OUTCOME_UNKNOWN" ? "OUTCOME_UNKNOWN" : "FAILED");
         const waiting = outcome === "OUTCOME_UNKNOWN";
         transition("role", current.role, waiting ? "WAITING_USER" : "FAILED");
         transition("turn", current.turn, waiting ? "WAITING_USER" : "FAILED");

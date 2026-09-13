@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHarness } from "./index";
-import { createTestDependencies } from "../../testing/src/index";
+import { createTestDependencies, testRole, testSettings } from "../../testing/src/index";
 import { createConversation, until, waitForTurn } from "../test-support";
 
 describe("conversation queue", () => {
@@ -83,5 +83,26 @@ describe("conversation queue", () => {
     ]) expect(await harness.dispatch(command)).toMatchObject({ ok: false, error: { code: "INVALID_TRANSITION" } });
     expect(await harness.query({ type: "GetConversation", conversationId })).toMatchObject({ ok: true, data: { turnIds: [completed.id], questions: [{ status: "COMPLETED" }, { status: "WITHDRAWN" }] } });
     expect(deps.model.calls).toHaveLength(1);
+  });
+
+  it("freezes submitted choices while participant changes affect only later questions", async () => {
+    const laterRole = { ...testRole, id: "later-role", corpusId: "later-corpus", corpusRevision: "later-v1" };
+    const deps = createTestDependencies({ roles: [testRole, laterRole] });
+    deps.model.holdNext();
+    const harness = await createHarness(deps);
+    const settings = { ...testSettings, model: { ...testSettings.model } };
+    const conversationId = await createConversation(harness, "create", settings);
+    await harness.dispatch({ type: "SubmitQuestion", commandId: "A", conversationId, text: "A" });
+    await until(() => deps.model.calls.length === 1);
+    await harness.dispatch({ type: "SubmitQuestion", commandId: "B", conversationId, text: "B" });
+    expect(await harness.dispatch({ type: "ChangeParticipants", commandId: "change", conversationId, participantId: laterRole.id })).toMatchObject({ ok: true });
+    await harness.dispatch({ type: "SubmitQuestion", commandId: "C", conversationId, text: "C" });
+    settings.model.modelId = "mutated-model";
+    laterRole.corpusRevision = "mutated-revision";
+    deps.model.calls[0]!.complete();
+    await waitForTurn(harness, conversationId, "COMPLETED", 2);
+    expect(deps.model.calls.map((call) => call.request.context.participant.id)).toEqual([testRole.id, testRole.id, "later-role"]);
+    expect(deps.rag.calls.map((call) => [call.request.corpusId, call.request.corpusRevision])).toEqual([[testRole.corpusId, testRole.corpusRevision], [testRole.corpusId, testRole.corpusRevision], ["later-corpus", "later-v1"]]);
+    expect(deps.model.calls.every((call) => call.request.context.settings.model.modelId === testSettings.model.modelId)).toBe(true);
   });
 });

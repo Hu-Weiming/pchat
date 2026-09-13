@@ -40,6 +40,7 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
       const result = await store.transaction((state): CommandReceipt => {
         if (!parsed.success) return { ok: false, commandId: "", lastEventSeq: state.lastEventSeq, error: failure("INVALID_INPUT") };
         const command = parsed.data;
+        if (coordinator.faulted) return { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("RUNTIME_UNAVAILABLE") };
         if (epoch !== state.epoch) return { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("RUNTIME_REPLACED") };
         const fingerprint = JSON.stringify(command);
         const prior = state.commands.find((item) => item.receipt.commandId === command.commandId);
@@ -63,6 +64,15 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
             conversation.questions.push({ id: questionId, text: command.text, status: "QUEUED", turnId: null, submittedAt: clock.now(), settings: copy(conversation.settings), participant: copy(participant) });
             emit(state, clock, { type: "QuestionAccepted", conversationId: conversation.id, questionId });
             receipt = { ok: true, commandId: command.commandId, conversationId: conversation.id, questionId, lastEventSeq: state.lastEventSeq };
+          }
+        } else if (command.type === "ChangeParticipants") {
+          const conversation = state.conversations.find((item) => item.id === command.conversationId);
+          const participant = roles.find((role) => role.id === command.participantId && role.status === "CONFIRMED");
+          if (!conversation || !participant) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
+          else {
+            conversation.settings.participantId = participant.id;
+            emit(state, clock, { type: "ConversationChanged", conversationId: conversation.id });
+            receipt = { ok: true, commandId: command.commandId, conversationId: conversation.id, lastEventSeq: state.lastEventSeq };
           }
         } else if (command.type === "StopTurn") {
           const turn = state.turns.find((item) => item.id === command.turnId);
@@ -135,6 +145,7 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
     async query<K extends keyof QueryMap>(input: QueryMap[K]["request"] & { type: K }): Promise<QueryResult<QueryMap[K]["response"]>> {
       const parsed = HarnessQuerySchema.safeParse(input);
       return store.read((state) => {
+        if (coordinator.faulted) return { ok: false, error: failure("RUNTIME_UNAVAILABLE"), lastEventSeq: state.lastEventSeq };
         if (!parsed.success) return { ok: false, error: failure("INVALID_INPUT"), lastEventSeq: state.lastEventSeq };
         const request = parsed.data;
         if (request.type === "ListConversations") return { ok: true, data: state.conversations.map(projectConversation), lastEventSeq: state.lastEventSeq };

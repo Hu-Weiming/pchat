@@ -10,6 +10,7 @@ const messages: Record<DomainError["code"], string> = {
   INVALID_TRANSITION: "This action is not valid in the current state.",
   QUEUE_BLOCKED: "Resolve or stop the current turn before resuming the queue.",
   RUNTIME_REPLACED: "This runtime is no longer the store owner.",
+  RUNTIME_UNAVAILABLE: "Persistence failed; reopen the runtime to recover safely.",
   BUDGET_EXCEEDED: "The configured call budget is exhausted.",
   CAPACITY_EXCEEDED: "The configured execution capacity is currently occupied.",
   PROVIDER_FAILED: "The provider did not complete the request.",

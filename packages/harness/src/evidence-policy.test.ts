@@ -120,4 +120,11 @@ describe("evidence policy through PchatHarness", () => {
     expect(turn.roleRuns[0]?.answer).toMatchObject({ kind: "FICTION" });
     expect(run.deps.model.calls).toHaveLength(1);
   });
+
+  it("refuses an invented reference even in explicitly selected fiction mode", async () => {
+    const run = await beginGeneration({ ...testSettings, knowledgeMode: "FICTION" });
+    run.generation.complete({ text: "An explicitly fictional scene.", kind: "FICTION", evidenceIds: [testEvidence.id, "never-retrieved"] });
+    const turn = await waitForTurn(run.harness, run.conversationId, (item) => item.status !== "RUNNING");
+    expect(turn).toMatchObject({ status: "FAILED", roleRuns: [{ answer: null, errorCode: "INVALID_PROVIDER_RESULT" }] });
+  });
 });

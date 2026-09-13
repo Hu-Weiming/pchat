@@ -6,6 +6,7 @@ export function validEvidence(participant: ThoughtStagePackage, evidence: readon
 }
 
 export function validAnswer(mode: KnowledgeMode, evidence: readonly Evidence[], answer: Answer): boolean {
+  if (!answer.evidenceIds.every((id) => evidence.some((item) => item.id === id))) return false;
   if (answer.kind === "FICTION") return mode === "FICTION";
   if (answer.kind === "INFERENCE" && mode === "PRIMARY") return false;
   if (answer.kind === "INSUFFICIENT_EVIDENCE") return answer.evidenceIds.every((id) => evidence.some((item) => item.id === id));
