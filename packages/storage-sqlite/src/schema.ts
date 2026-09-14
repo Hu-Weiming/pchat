@@ -1,3 +1,7 @@
+export const MODEL_INPUTS_SQL = `CREATE TABLE model_inputs (
+  attempt_id TEXT PRIMARY KEY REFERENCES external_attempts(id), snapshot_json TEXT NOT NULL
+) STRICT;`;
+
 export const SCHEMA_SQL = `
 CREATE TABLE runtime_meta (
   singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
@@ -15,7 +19,7 @@ CREATE TABLE questions (
   id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id),
   ordinal INTEGER NOT NULL, text TEXT NOT NULL, status TEXT NOT NULL,
   turn_id TEXT REFERENCES turns(id) DEFERRABLE INITIALLY DEFERRED,
-  submitted_at REAL NOT NULL, settings_json TEXT NOT NULL, participants_json TEXT NOT NULL,
+  submitted_at REAL NOT NULL, settings_json TEXT NOT NULL, participants_json TEXT NOT NULL, execution_policy_json TEXT,
   UNIQUE(conversation_id, ordinal)
 ) STRICT;
 CREATE TABLE turns (
@@ -48,4 +52,5 @@ CREATE TABLE command_receipts (
   receipt_json TEXT NOT NULL
 ) STRICT;
 CREATE TABLE event_journal (seq INTEGER PRIMARY KEY, event_json TEXT NOT NULL) STRICT;
+${MODEL_INPUTS_SQL}
 `;

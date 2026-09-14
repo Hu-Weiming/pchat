@@ -1,9 +1,10 @@
 import type {
   Answer, CommandReceipt, ContextSnapshot, ConversationSettings, Evidence, ExternalAttempt,
   HarnessEvent, KnowledgeMode, QuestionStatus, RoleRunProjection, ThoughtStagePackage, TurnProjection,
+  ModelExecutionPolicy, ModelInputContent, ModelInputSnapshot,
 } from "@pchat/contracts";
 
-export type { Answer, ContextSnapshot, Evidence, ExternalAttempt, ThoughtStagePackage };
+export type { Answer, ContextSnapshot, Evidence, ExternalAttempt, ThoughtStagePackage, ModelExecutionPolicy, ModelInputContent, ModelInputSnapshot };
 export interface Cancellation {
   readonly cancelled: boolean;
   subscribe(listener: () => void): () => void;
@@ -25,7 +26,11 @@ export interface GenerationRequest {
   roleRunId: string;
   context: ContextSnapshot;
   evidence: Evidence[];
+  input?: ModelInputSnapshot;
 }
+/** Counts the provider's actual rendered input, including its system rules and
+ * message framing. The version and accuracy mode belong to the frozen policy. */
+export interface TokenCounter { readonly version: string; count(input: ModelInputContent, policy: ModelExecutionPolicy): number }
 export type ModelChunk = { type: "delta"; text: string } | { type: "complete"; answer: Answer } | { type: "failure"; code: "REJECTED" | "OUTCOME_UNKNOWN" };
 export interface ModelPort { generate(request: GenerationRequest, cancellation: Cancellation): AsyncIterable<ModelChunk> }
 export interface Clock { now(): number }
@@ -41,6 +46,7 @@ export interface QuestionRecord {
   submittedAt: number;
   settings: ConversationSettings;
   participants: ThoughtStagePackage[];
+  executionPolicy?: ModelExecutionPolicy | null;
 }
 export interface ConversationRecord {
   id: string;
@@ -87,6 +93,7 @@ export interface HarnessDependencies {
   limits: { maxActiveTurns: number; maxRoleRuns: number; maxExternalCalls: number; maxCostUnits: number };
   attemptCostUnits: { RAG: number; MODEL: number };
   draftCheckpointChars: number;
+  modelExecution: { policies: readonly ModelExecutionPolicy[]; counter: TokenCounter };
 }
 
 export type { KnowledgeMode };

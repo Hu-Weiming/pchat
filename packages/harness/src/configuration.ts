@@ -1,4 +1,4 @@
-import { ThoughtStagePackageSchema } from "@pchat/contracts";
+import { ModelExecutionPolicySchema, ThoughtStagePackageSchema } from "@pchat/contracts";
 import type { HarnessDependencies } from "./ports";
 
 function positiveSafeInteger(value: number): boolean { return Number.isSafeInteger(value) && value > 0 }
@@ -16,6 +16,9 @@ export function validateConfiguration(dependencies: HarnessDependencies): Harnes
     };
     const attemptCostUnits = { RAG: dependencies.attemptCostUnits.RAG, MODEL: dependencies.attemptCostUnits.MODEL };
     const draftCheckpointChars = dependencies.draftCheckpointChars;
+    const policies = ModelExecutionPolicySchema.array().parse(dependencies.modelExecution.policies);
+    if (new Set(policies.map((policy) => JSON.stringify(policy.binding))).size !== policies.length ||
+        policies.some((policy) => policy.counterVersion !== dependencies.modelExecution.counter.version)) throw new Error();
     if (!parsed.success || new Set(parsed.data.map((role) => role.id)).size !== parsed.data.length ||
         !positiveSafeInteger(limits.maxActiveTurns) || !positiveSafeInteger(limits.maxRoleRuns) ||
         !positiveSafeInteger(limits.maxExternalCalls) || !nonnegativeFinite(limits.maxCostUnits) ||
@@ -28,6 +31,7 @@ export function validateConfiguration(dependencies: HarnessDependencies): Harnes
       store: dependencies.store, model: dependencies.model, rag: dependencies.rag,
       clock: dependencies.clock, ids: dependencies.ids,
       roles: parsed.data, limits, attemptCostUnits, draftCheckpointChars,
+      modelExecution: { policies, counter: dependencies.modelExecution.counter },
     };
   } catch {
     throw new Error("Harness configuration is invalid.");

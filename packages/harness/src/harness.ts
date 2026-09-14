@@ -59,6 +59,7 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
         if (command.type === "CreateConversation") {
           const participants = selectParticipants(command.settings.participantIds);
           if (!participants) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
+          else if (!dependencies.modelExecution.policies.some((policy) => JSON.stringify(policy.binding) === JSON.stringify(command.settings.model))) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CONTEXT_UNAVAILABLE") };
           else {
             const conversationId = ids.next();
             state.conversations.push({ id: conversationId, title: command.title, settings: command.settings, queueStatus: "RUNNING", activeTurnId: null, questions: [], turnIds: [] });
@@ -68,10 +69,12 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
         } else if (command.type === "SubmitQuestion") {
           const conversation = state.conversations.find((item) => item.id === command.conversationId);
           const participants = conversation ? selectParticipants(conversation.settings.participantIds) : null;
+          const executionPolicy = dependencies.modelExecution.policies.find((policy) => JSON.stringify(policy.binding) === JSON.stringify(conversation?.settings.model));
           if (!conversation || !participants) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
+          else if (!executionPolicy) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CONTEXT_UNAVAILABLE") };
           else {
             const questionId = ids.next();
-            conversation.questions.push({ id: questionId, text: command.text, status: "QUEUED", turnId: null, submittedAt: clock.now(), settings: copy(conversation.settings), participants: copy(participants) });
+            conversation.questions.push({ id: questionId, text: command.text, status: "QUEUED", turnId: null, submittedAt: clock.now(), settings: copy(conversation.settings), participants: copy(participants), executionPolicy: copy(executionPolicy) });
             emit(state, clock, { type: "QuestionAccepted", conversationId: conversation.id, questionId });
             receipt = { ok: true, commandId: command.commandId, conversationId: conversation.id, questionId, lastEventSeq: state.lastEventSeq };
           }

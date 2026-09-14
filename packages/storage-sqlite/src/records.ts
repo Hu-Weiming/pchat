@@ -1,7 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import {
   AnswerSchema, CommandReceiptSchema, ComparisonProjectionSchema, ContextSnapshotSchema, ConversationSettingsSchema,
-  EvidenceSchema, ExternalAttemptSchema, HarnessEventSchema, QuestionStatusSchema,
+  EvidenceSchema, ExternalAttemptSchema, HarnessEventSchema, ModelExecutionPolicySchema, ModelInputSnapshotSchema, QuestionStatusSchema,
   RoleStatusSchema, TurnContextSnapshotSchema, TurnStatusSchema,
 } from "@pchat/contracts";
 import type { RuntimeState } from "@pchat/harness";
@@ -36,7 +36,8 @@ export function readState(database: DatabaseSync): RuntimeState {
     if (!conversation) throw new Error("Orphan question");
     conversation.questions.push({ id: string(row.id), text: string(row.text), status: QuestionStatusSchema.parse(row.status),
       turnId: nullableString(row.turn_id), submittedAt: number(row.submitted_at),
-      settings: ConversationSettingsSchema.parse(json(row.settings_json)), participants: TurnContextSnapshotSchema.shape.participants.parse(json(row.participants_json)) });
+      settings: ConversationSettingsSchema.parse(json(row.settings_json)), participants: TurnContextSnapshotSchema.shape.participants.parse(json(row.participants_json)),
+      ...(row.execution_policy_json === null ? {} : { executionPolicy: ModelExecutionPolicySchema.parse(json(row.execution_policy_json)) }) });
   }
   for (const row of database.prepare("SELECT * FROM turns ORDER BY ordinal").all()) {
     state.turns.push({ id: string(row.id), conversationId: string(row.conversation_id), questionId: string(row.question_id),
@@ -63,6 +64,12 @@ export function readState(database: DatabaseSync): RuntimeState {
     role.attempts.push(ExternalAttemptSchema.parse({ id: row.id, kind: row.kind, status: row.status,
       previousAttemptId: row.previous_attempt_id, reservedCostUnits: row.reserved_cost_units, draft: row.draft }));
   }
+  const attempts = new Map(state.turns.flatMap((turn) => turn.roleRuns.flatMap((role) => role.attempts.map((attempt) => [attempt.id, attempt] as const))));
+  for (const row of database.prepare("SELECT * FROM model_inputs").all()) {
+    const attempt = attempts.get(string(row.attempt_id));
+    if (!attempt || attempt.kind !== "MODEL") throw new Error("Invalid model input owner");
+    attempt.input = ModelInputSnapshotSchema.parse(json(row.snapshot_json));
+  }
   for (const row of database.prepare("SELECT * FROM evidence_snapshots ORDER BY role_run_id, ordinal").all()) {
     const role = roles.get(string(row.role_run_id));
     if (!role) throw new Error("Orphan evidence");
@@ -83,11 +90,12 @@ function rowsFor(state: RuntimeState): TableRows[] {
   const meta = table("runtime_meta", ["singleton", "epoch", "suspended", "last_event_seq"], ["singleton"]);
   meta.rows.push([1, state.epoch, Number(state.suspended), state.lastEventSeq]);
   const conversations = table("conversations", ["id", "ordinal", "title", "settings_json", "queue_status", "active_turn_id"], ["id"]);
-  const questions = table("questions", ["id", "conversation_id", "ordinal", "text", "status", "turn_id", "submitted_at", "settings_json", "participants_json"], ["id"]);
+  const questions = table("questions", ["id", "conversation_id", "ordinal", "text", "status", "turn_id", "submitted_at", "settings_json", "participants_json", "execution_policy_json"], ["id"]);
   const turns = table("turns", ["id", "conversation_id", "question_id", "ordinal", "conversation_ordinal", "status", "context_json", "comparison_json"], ["id"]);
   const roles = table("role_runs", ["id", "turn_id", "ordinal", "status", "text_so_far", "revision", "answer_json", "error_code"], ["id"]);
   const roleContexts = table("role_contexts", ["role_run_id", "context_json"], ["role_run_id"]);
   const attempts = table("external_attempts", ["id", "role_run_id", "ordinal", "kind", "status", "previous_attempt_id", "reserved_cost_units", "draft"], ["id"]);
+  const modelInputs = table("model_inputs", ["attempt_id", "snapshot_json"], ["attempt_id"]);
   const evidence = table("evidence_snapshots", ["role_run_id", "id", "ordinal", "snapshot_json"], ["role_run_id", "id"]);
   const commands = table("command_receipts", ["command_id", "ordinal", "fingerprint", "receipt_json"], ["command_id"]);
   const events = table("event_journal", ["seq", "event_json"], ["seq"]);
@@ -97,7 +105,7 @@ function rowsFor(state: RuntimeState): TableRows[] {
     conversation.turnIds.forEach((id, index) => { turnOrder.set(id, index); });
     conversation.questions.forEach((question, index) => {
       questions.rows.push([question.id, conversation.id, index, question.text, question.status, question.turnId, question.submittedAt,
-        JSON.stringify(question.settings), JSON.stringify(question.participants)]);
+        JSON.stringify(question.settings), JSON.stringify(question.participants), question.executionPolicy ? JSON.stringify(question.executionPolicy) : null]);
     });
   });
   state.turns.forEach((turn, ordinal) => {
@@ -110,13 +118,17 @@ function rowsFor(state: RuntimeState): TableRows[] {
       roleContexts.rows.push([role.id, JSON.stringify(role.context)]);
       role.attempts.forEach((attempt, index) => {
         attempts.rows.push([attempt.id, role.id, index, attempt.kind, attempt.status, attempt.previousAttemptId, attempt.reservedCostUnits, attempt.draft]);
+        if (attempt.input) {
+          if (attempt.kind !== "MODEL") throw new Error("Invalid model input owner");
+          modelInputs.rows.push([attempt.id, JSON.stringify(attempt.input)]);
+        }
       });
       role.evidence.forEach((item, index) => { evidence.rows.push([role.id, item.id, index, JSON.stringify(item)]); });
     });
   });
   state.commands.forEach((command, ordinal) => { commands.rows.push([command.receipt.commandId, ordinal, command.fingerprint, JSON.stringify(command.receipt)]); });
   for (const event of state.events) events.rows.push([event.seq, JSON.stringify(event)]);
-  return [meta, conversations, questions, turns, roles, roleContexts, attempts, evidence, commands, events];
+  return [meta, conversations, questions, turns, roles, roleContexts, attempts, modelInputs, evidence, commands, events];
 }
 
 function keyValues(table: TableRows, row: Cell[]): Cell[] {

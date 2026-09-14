@@ -57,8 +57,8 @@ it("backs up committed WAL content before upgrading an older database", async ()
       expect(backup.prepare("SELECT epoch FROM runtime_meta").get()?.epoch).toBe(17);
       expect(backup.prepare("PRAGMA quick_check").get()?.quick_check).toBe("ok");
     } finally { backup.close(); }
-    expect(old.prepare("PRAGMA user_version").get()?.user_version).toBe(3);
-    expect(old.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map((row) => row.version)).toEqual([1, 2, 3]);
+    expect(old.prepare("PRAGMA user_version").get()?.user_version).toBe(4);
+    expect(old.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map((row) => row.version)).toEqual([1, 2, 3, 4]);
   } finally { upgraded?.close(); old.close(); }
 });
 

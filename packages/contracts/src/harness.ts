@@ -49,6 +49,7 @@ const error = <T extends string>(code: T) => z.strictObject({ code: z.literal(co
 export const DomainErrorSchema = z.discriminatedUnion("code", [
   error("INVALID_INPUT"), error("NOT_FOUND"), error("COMMAND_CONFLICT"), error("INVALID_TRANSITION"),
   error("QUEUE_BLOCKED"), error("RUNTIME_REPLACED"), error("BUDGET_EXCEEDED"),
+  error("CONTEXT_BUDGET_EXCEEDED"), error("CONTEXT_UNAVAILABLE"),
   error("PROVIDER_FAILED"), error("INVALID_PROVIDER_RESULT"), error("CAPACITY_EXCEEDED"), error("RUNTIME_UNAVAILABLE"),
 ]);
 export type DomainError = z.infer<typeof DomainErrorSchema>;
@@ -81,18 +82,42 @@ export const EvidenceSchema = z.strictObject({
 export const AnswerSchema = z.strictObject({
   text: z.string().min(1), kind: z.enum(["PARAPHRASE", "QUOTE", "INFERENCE", "FICTION", "INSUFFICIENT_EVIDENCE"]), evidenceIds: z.array(Id),
 });
+const TokenCount = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+export const ModelExecutionPolicySchema = z.strictObject({
+  binding: ModelBindingSchema, windowTokens: TokenCount.min(1), outputReserveTokens: TokenCount.min(1),
+  policyVersion: Id, counterVersion: Id, promptVersion: Id, countMode: z.enum(["EXACT", "UPPER_BOUND"]),
+}).refine((policy) => policy.outputReserveTokens < policy.windowTokens);
+const CheckpointQuote = z.strictObject({ turnId: Id, text: z.string(), start: TokenCount, end: TokenCount });
+export const ConversationCheckpointSchema = z.strictObject({
+  generatorVersion: Id, sourceTurnIds: z.array(Id).min(1), fromEventSeq: EventCursorSchema, toEventSeq: EventCursorSchema,
+  userQuestions: z.array(CheckpointQuote), userClaims: z.array(CheckpointQuote),
+  clarifiedConcepts: z.array(CheckpointQuote), unresolvedDifferences: z.array(CheckpointQuote),
+  rolePositions: z.array(CheckpointQuote.extend({ roleRunId: Id, participantId: Id, kind: z.literal("EXCERPT") })),
+});
 export const ContextSnapshotSchema = z.strictObject({
   question: z.strictObject({ id: Id, text: z.string() }), settings: ConversationSettingsSchema,
   participant: ThoughtStagePackageSchema,
   history: z.array(z.strictObject({ turnId: Id, question: z.string(), answer: z.string() })),
+  executionPolicy: ModelExecutionPolicySchema.nullish(),
 });
 export const TurnContextSnapshotSchema = z.strictObject({
   question: ContextSnapshotSchema.shape.question, settings: ConversationSettingsSchema,
   participants: z.array(ThoughtStagePackageSchema).min(1).max(3), history: ContextSnapshotSchema.shape.history,
 });
+export const ModelInputContentSchema = z.strictObject({
+  context: ContextSnapshotSchema, evidence: z.array(EvidenceSchema), checkpoint: ConversationCheckpointSchema.nullable(),
+});
+export const ModelInputSnapshotSchema = ModelInputContentSchema.extend({
+  audit: z.strictObject({
+    assemblerVersion: Id, policyVersion: Id, counterVersion: Id, promptVersion: Id, countMode: z.enum(["EXACT", "UPPER_BOUND"]),
+    windowTokens: TokenCount.min(1), outputReserveTokens: TokenCount.min(1), baseInputTokens: TokenCount, inputTokens: TokenCount,
+    retainedTurnIds: z.array(Id), omittedTurnIds: z.array(Id), checkpointStatus: z.enum(["NOT_NEEDED", "CAPTURED", "NO_SPACE", "UNAVAILABLE"]),
+  }),
+});
 export const ExternalAttemptSchema = z.strictObject({
   id: Id, kind: z.enum(["RAG", "MODEL"]), status: AttemptStatusSchema,
   previousAttemptId: Id.nullable(), reservedCostUnits: z.number().min(0), draft: z.string(),
+  input: ModelInputSnapshotSchema.nullish(),
 });
 export const RoleRunProjectionSchema = z.strictObject({
   id: Id, status: RoleStatusSchema, textSoFar: z.string(), revision: EventCursorSchema,
@@ -113,6 +138,10 @@ export type ThoughtStagePackage = z.infer<typeof ThoughtStagePackageSchema>;
 export type Evidence = z.infer<typeof EvidenceSchema>;
 export type Answer = z.infer<typeof AnswerSchema>;
 export type ContextSnapshot = z.infer<typeof ContextSnapshotSchema>;
+export type ModelExecutionPolicy = z.infer<typeof ModelExecutionPolicySchema>;
+export type ConversationCheckpoint = z.infer<typeof ConversationCheckpointSchema>;
+export type ModelInputContent = z.infer<typeof ModelInputContentSchema>;
+export type ModelInputSnapshot = z.infer<typeof ModelInputSnapshotSchema>;
 export type TurnContextSnapshot = z.infer<typeof TurnContextSnapshotSchema>;
 export type ComparisonProjection = z.infer<typeof ComparisonProjectionSchema>;
 export type ExternalAttempt = z.infer<typeof ExternalAttemptSchema>;

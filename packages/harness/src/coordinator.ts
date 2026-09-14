@@ -1,11 +1,12 @@
 import { ModelChunkSchema, RetrievalResultSchema } from "@pchat/contracts";
-import type { Answer, ExternalAttempt, HarnessDependencies, RoleRunRecord, RuntimeState, TurnRecord } from "./ports";
+import type { Answer, ExternalAttempt, HarnessDependencies, ModelInputSnapshot, RoleRunRecord, RuntimeState, TurnRecord } from "./ports";
 import { copy } from "./data";
 import { emit } from "./journal";
 import { transition } from "./transitions";
 import { CancellationToken } from "./cancellation";
 import { insufficientEvidenceAnswer, validAnswer, validEvidence } from "./evidence-policy";
 import { pauseQueue, settleTurn } from "./settlement";
+import { assembleContext, ContextFailure } from "./context";
 
 class ExecutionFailure extends Error {
   constructor(readonly outcome: "REJECTED" | "OUTCOME_UNKNOWN" | "INVALID_PROVIDER_RESULT" | "BUDGET_EXCEEDED") { super(outcome) }
@@ -109,6 +110,9 @@ export class TurnCoordinator {
       const claimRole = (turn: TurnRecord) => {
         const role = turn.roleRuns.find((item) => item.status === "PENDING" && !this.running.has(item.id));
         if (!role) return null;
+        // Legacy snapshots have no historical budget audit. An explicit new
+        // execution may attach a policy without inventing past model inputs.
+        if (!role.context.executionPolicy) role.context.executionPolicy = copy(this.deps.modelExecution.policies.find((policy) => JSON.stringify(policy.binding) === JSON.stringify(role.context.settings.model)) ?? null);
         const previous = role.attempts.at(-1);
         transition("role", role, previous?.kind === "MODEL" || (previous?.kind === "RAG" && previous.status === "SUCCEEDED") ? "GENERATING" : "RETRIEVING");
         emit(state, this.deps.clock, { type: "RoleStarted", ...this.eventIds(turn, role) });
@@ -136,7 +140,8 @@ export class TurnCoordinator {
         },
         roleRuns: question.participants.map((participant) => ({
           id: this.deps.ids.next(), status: "PENDING", textSoFar: "", revision: 0, evidence: [], answer: null, attempts: [], errorCode: null,
-          context: { question: { id: question.id, text: question.text }, settings: copy(question.settings), participant: copy(participant), history: copy(history) },
+          context: { question: { id: question.id, text: question.text }, settings: copy(question.settings), participant: copy(participant), history: copy(history),
+            executionPolicy: copy(question.executionPolicy ?? this.deps.modelExecution.policies.find((policy) => JSON.stringify(policy.binding) === JSON.stringify(question.settings.model)) ?? null) },
         })),
         comparison: null,
       };
@@ -161,7 +166,7 @@ export class TurnCoordinator {
     return turn && role ? { turn, role } : null;
   }
 
-  private async prepare(turnId: string, roleId: string, kind: ExternalAttempt["kind"]): Promise<ExternalAttempt | null> {
+  private async prepare(turnId: string, roleId: string, kind: ExternalAttempt["kind"], input?: ModelInputSnapshot): Promise<ExternalAttempt | null> {
     const attempt = await this.deps.store.transaction((state) => {
       const current = this.active(state, turnId, roleId);
       if (!current) return null;
@@ -171,6 +176,7 @@ export class TurnCoordinator {
       if (reserved > this.deps.limits.maxCostUnits - this.deps.attemptCostUnits[kind]) throw new ExecutionFailure("BUDGET_EXCEEDED");
       const previous = current.role.attempts.filter((item) => item.kind === kind).at(-1);
       const attempt: ExternalAttempt = { id: this.deps.ids.next(), kind, status: "PREPARED", previousAttemptId: previous?.id ?? null, reservedCostUnits: this.deps.attemptCostUnits[kind], draft: "" };
+      if (input) attempt.input = copy(input);
       current.role.attempts.push(attempt);
       return attempt;
     });
@@ -208,6 +214,7 @@ export class TurnCoordinator {
 
   private async execute(turn: TurnRecord, role: RoleRunRecord, token: CancellationToken): Promise<void> {
     try {
+      if (!role.context.executionPolicy) throw new ContextFailure("CONTEXT_UNAVAILABLE");
       let evidence = role.evidence;
       if (role.status === "RETRIEVING") {
         const participant = role.context.participant;
@@ -241,11 +248,12 @@ export class TurnCoordinator {
         return;
       }
       await this.external(token, async () => {
-        const attempt = await this.prepare(turn.id, role.id, "MODEL");
+        const input = await this.deps.store.read((state) => assembleContext(role.context, evidence, this.deps.modelExecution.counter, state));
+        const attempt = await this.prepare(turn.id, role.id, "MODEL", input);
         if (!attempt || token.cancelled || this.retired || this.faulted) return;
         let draft = "";
         let checkpointLength = 0;
-        for await (const raw of this.deps.model.generate(copy({ attemptId: attempt.id, roleRunId: role.id, context: role.context, evidence }), token)) {
+        for await (const raw of this.deps.model.generate(copy({ attemptId: attempt.id, roleRunId: role.id, context: input.context, evidence: input.evidence, input }), token)) {
           const parsed = ModelChunkSchema.safeParse(raw);
           if (!parsed.success) throw new ExecutionFailure("INVALID_PROVIDER_RESULT");
           const chunk = parsed.data;
@@ -275,13 +283,13 @@ export class TurnCoordinator {
         const current = this.active(state, turn.id, role.id);
         if (!current) return;
         this.checkpoint(state, current.turn);
-        const outcome = error instanceof ExecutionFailure ? error.outcome : "OUTCOME_UNKNOWN";
+        const outcome = error instanceof ExecutionFailure || error instanceof ContextFailure ? error.outcome : "OUTCOME_UNKNOWN";
         const attempt = current.role.attempts.at(-1);
         if (attempt?.status === "PREPARED") transition("attempt", attempt, "CANCELLED");
         else if (attempt?.status === "IN_FLIGHT") transition("attempt", attempt, outcome === "OUTCOME_UNKNOWN" ? "OUTCOME_UNKNOWN" : "FAILED");
         const waiting = outcome === "OUTCOME_UNKNOWN";
         transition("role", current.role, waiting ? "WAITING_USER" : "FAILED");
-        current.role.errorCode = outcome === "INVALID_PROVIDER_RESULT" || outcome === "BUDGET_EXCEEDED" ? outcome : "PROVIDER_FAILED";
+        current.role.errorCode = outcome === "INVALID_PROVIDER_RESULT" || outcome === "BUDGET_EXCEEDED" || outcome === "CONTEXT_BUDGET_EXCEEDED" || outcome === "CONTEXT_UNAVAILABLE" ? outcome : "PROVIDER_FAILED";
         emit(state, this.deps.clock, { type: waiting ? "RoleWaiting" : "RoleFailed", ...this.eventIds(current.turn, current.role) });
         pauseQueue(state, current.turn, this.deps.clock);
         settleTurn(state, current.turn, this.deps.clock);

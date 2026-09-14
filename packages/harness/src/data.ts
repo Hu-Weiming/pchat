@@ -12,6 +12,8 @@ const messages: Record<DomainError["code"], string> = {
   RUNTIME_REPLACED: "This runtime is no longer the store owner.",
   RUNTIME_UNAVAILABLE: "Persistence failed; reopen the runtime to recover safely.",
   BUDGET_EXCEEDED: "The configured call budget is exhausted.",
+  CONTEXT_BUDGET_EXCEEDED: "The required question, identity and evidence exceed the model input budget.",
+  CONTEXT_UNAVAILABLE: "The frozen model input policy or token counter is unavailable.",
   CAPACITY_EXCEEDED: "The configured execution capacity is currently occupied.",
   PROVIDER_FAILED: "The provider did not complete the request.",
   INVALID_PROVIDER_RESULT: "The provider response failed validation.",

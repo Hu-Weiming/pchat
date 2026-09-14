@@ -70,6 +70,24 @@ it("reopens a complete Harness turn with its evidence, attempts, receipt and eve
   } finally { reopened.close(); }
 });
 
+it("persists the actual model input and budget separately from the streaming draft", async () => {
+  const configuration = options();
+  const store = await openSqliteStore(configuration);
+  const fakes = createTestDependencies();
+  const harness = await createHarness({ ...fakes, store });
+  const conversationId = await createConversation(harness);
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "input", conversationId, text: "Auditable input" });
+  const complete = await waitForTurn(harness, conversationId, "COMPLETED");
+  const input = fakes.model.calls[0]!.request.input;
+  expect(input).toBeDefined();
+  expect(complete.roleRuns[0]!.attempts.at(-1)?.input).toEqual(input);
+  store.close();
+  const reopened = await openSqliteStore(configuration);
+  const recovered = await createHarness({ ...fakes, store: reopened });
+  expect(await recovered.query({ type: "GetTurn", turnId: complete.id })).toMatchObject({ ok: true, data: complete });
+  expect(fakes.model.calls).toHaveLength(1);
+});
+
 it("rejects asynchronous writers without committing or publishing them", async () => {
   const store = await openSqliteStore(options());
   try {
