@@ -69,6 +69,15 @@ importers:
       '@pchat/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@pchat/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
+      '@pchat/providers':
+        specifier: workspace:*
+        version: link:../../packages/providers
+      '@pchat/storage-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/storage-sqlite
       zod:
         specifier: 4.5.4
         version: 4.5.4

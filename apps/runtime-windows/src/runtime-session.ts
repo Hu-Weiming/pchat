@@ -3,12 +3,13 @@ import { TextDecoder } from "node:util";
 import type { PchatClient } from "@pchat/client";
 import { WINDOWS_PROTOCOL_VERSION, WindowsShutdownRequestSchema } from "@pchat/contracts";
 import { createHarnessChannel } from "./harness-channel";
+import type { createKnowledgeSetup } from "./knowledge-setup";
 
 type SessionReason = "SHUTDOWN" | "INPUT_CLOSED" | "INVALID_FRAME" | "IO_ERROR";
-export interface RuntimeSessionOptions { harness: PchatClient; input: Readable; output: Writable; nextId(): string }
+export interface RuntimeSessionOptions { harness: PchatClient; input: Readable; output: Writable; nextId(): string; host?: { receive(message: unknown): boolean; close(): void }; setup?: ReturnType<typeof createKnowledgeSetup> }
 
 /** Private NDJSON over inherited pipes. No ports or provider credentials. */
-export async function runRuntimeSession({ harness, input, output, nextId }: RuntimeSessionOptions): Promise<{ reason: SessionReason; suspended: boolean }> {
+export async function runRuntimeSession({ harness, input, output, nextId, host, setup }: RuntimeSessionOptions): Promise<{ reason: SessionReason; suspended: boolean }> {
   let writes = Promise.resolve();
   const emit = (message: unknown) => {
     const line = JSON.stringify(message) + "\n";
@@ -27,6 +28,7 @@ export async function runRuntimeSession({ harness, input, output, nextId }: Runt
   const stop = (reason: SessionReason, requestId?: string) => {
     if (stopping) return;
     stopping = true;
+    setup?.close();
     input.pause();
     input.off("data", receive);
     void (async () => {
@@ -36,6 +38,7 @@ export async function runRuntimeSession({ harness, input, output, nextId }: Runt
         suspended = receipt.ok;
       } catch { /* Host treats an unconfirmed shutdown as failed. */ }
       await channel.close();
+      host?.close();
       await Promise.allSettled(pending);
       if (requestId) {
         try {
@@ -64,10 +67,11 @@ export async function runRuntimeSession({ harness, input, output, nextId }: Runt
       let message: unknown;
       try { message = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(line)); }
       catch { stop("INVALID_FRAME"); return; }
+      if (host?.receive(message)) continue;
       const shutdown = WindowsShutdownRequestSchema.safeParse(message);
       if (shutdown.success) { stop("SHUTDOWN", shutdown.data.requestId); return; }
       if (pending.size >= 64) { stop("INVALID_FRAME"); return; }
-      const work = channel.handle(message).then(emit).catch(() => { stop("IO_ERROR"); });
+      const work = (setup?.accepts(message) ? setup.handle(message) : channel.handle(message)).then(emit).catch(() => { stop("IO_ERROR"); });
       pending.add(work);
       void work.finally(() => { pending.delete(work); });
     }

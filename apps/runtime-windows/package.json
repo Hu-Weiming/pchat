@@ -10,6 +10,9 @@
   "dependencies": {
     "@pchat/client": "workspace:*",
     "@pchat/contracts": "workspace:*",
+    "@pchat/harness": "workspace:*",
+    "@pchat/storage-sqlite": "workspace:*",
+    "@pchat/providers": "workspace:*",
     "zod": "4.5.4"
   },
   "devDependencies": {

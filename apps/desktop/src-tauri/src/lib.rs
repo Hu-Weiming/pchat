@@ -1,3 +1,5 @@
+mod settings;
+mod network;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
@@ -20,7 +22,8 @@ use tauri_plugin_shell::{
 };
 use tokio::sync::oneshot;
 
-const PROTOCOL_VERSION: u32 = 1;
+const PROTOCOL_VERSION: u32 = 2;
+static ACCEPTANCE_LOG_LOCK: Mutex<()> = Mutex::new(());
 
 type PendingResult = Result<Value, String>;
 
@@ -41,6 +44,8 @@ struct RuntimeStatus {
 }
 
 struct RuntimeManagerInner {
+    network: network::Network,
+    configuration_lock: tokio::sync::Mutex<()>,
     child: Mutex<Option<ChildSlot>>,
     pending: Mutex<HashMap<String, oneshot::Sender<PendingResult>>>,
     status: Mutex<RuntimeStatus>,
@@ -54,6 +59,8 @@ struct RuntimeManager(Arc<RuntimeManagerInner>);
 impl Default for RuntimeManager {
     fn default() -> Self {
         Self(Arc::new(RuntimeManagerInner {
+            network: network::Network::default(),
+            configuration_lock: tokio::sync::Mutex::new(()),
             child: Mutex::new(None),
             pending: Mutex::new(HashMap::new()),
             status: Mutex::new(RuntimeStatus {
@@ -140,6 +147,7 @@ impl RuntimeManager {
                     .map_err(|error| error.to_string())?,
             ));
 
+        let command = command.env("PCHAT_STATE_DIRECTORY", settings::state_directory());
         let (mut events, child) = command.spawn().map_err(|error| error.to_string())?;
         let pid = child.pid();
         *child_guard = Some(ChildSlot { generation, child });
@@ -161,13 +169,12 @@ impl RuntimeManager {
                     CommandEvent::Stdout(bytes) => {
                         manager.handle_stdout(&event_app, &bytes, generation)
                     }
-                    CommandEvent::Stderr(bytes) => {
-                        let error = String::from_utf8_lossy(&bytes).into_owned();
-                        eprintln!("[p0-runtime stderr] {error}");
+                    CommandEvent::Stderr(_bytes) => {
+                        let error = "后台报告运行异常".to_owned();
                         manager.record_error(generation, error);
                     }
-                    CommandEvent::Error(error) => {
-                        eprintln!("[p0-runtime error] {error}");
+                    CommandEvent::Error(_error) => {
+                        let error = "后台进程通信异常".to_owned();
                         manager.record_error(generation, error);
                     }
                     CommandEvent::Terminated(payload) => {
@@ -183,6 +190,7 @@ impl RuntimeManager {
     }
 
     fn handle_stdout(&self, app: &AppHandle, bytes: &[u8], generation: u64) {
+        if self.status().generation != generation { return; }
         let line = String::from_utf8_lossy(bytes);
         let parsed: Value = match serde_json::from_str(line.trim()) {
             Ok(value) => value,
@@ -192,6 +200,7 @@ impl RuntimeManager {
             }
         };
 
+        if parsed.get("protocolVersion").and_then(Value::as_u64) != Some(PROTOCOL_VERSION as u64) { self.record_error(generation, "后台协议版本不匹配".into()); return; }
         match parsed.get("kind").and_then(Value::as_str) {
             Some("runtime.ready") => {
                 let pid = parsed.get("pid").and_then(Value::as_u64).map(|value| value as u32);
@@ -236,67 +245,20 @@ impl RuntimeManager {
     }
 
     fn handle_host_request(&self, message: &Value, generation: u64) {
-        let request_id = message
-            .get("requestId")
-            .and_then(Value::as_str)
-            .unwrap_or("unknown");
-        let result = match message.get("method").and_then(Value::as_str) {
-            Some("provider.send") => Self::provider_capability(
-                message.get("params").cloned().unwrap_or(Value::Null),
-            ),
-            _ => Err("Host 拒绝未知能力请求".into()),
-        };
-
-        let response = match result {
-            Ok(value) => json!({
-                "kind": "host.response",
-                "protocolVersion": PROTOCOL_VERSION,
-                "requestId": request_id,
-                "ok": true,
-                "result": value,
-            }),
-            Err(error) => json!({
-                "kind": "host.response",
-                "protocolVersion": PROTOCOL_VERSION,
-                "requestId": request_id,
-                "ok": false,
-                "error": error,
-            }),
-        };
-
-        if let Err(error) = self.write_message(&response) {
-            self.record_error(generation, error);
-        }
-    }
-
-    fn provider_capability(params: Value) -> PendingResult {
-        let connection_id = params
-            .get("connectionId")
-            .and_then(Value::as_str)
-            .ok_or_else(|| "缺少 connectionId".to_owned())?;
-        let operation = params
-            .get("operation")
-            .and_then(Value::as_str)
-            .ok_or_else(|| "缺少 provider operation".to_owned())?;
-
-        if connection_id != "deepseek:personal-default" {
-            return Err("未批准的 connectionId 已被 Host 拒绝".into());
-        }
-        if operation != "chat.completions" {
-            return Err("未批准的供应商操作已被 Host 拒绝".into());
-        }
-
-        // P0 只验证能力边界。真实密钥将由系统凭证库按 handle 读取，
-        // 只在 Host 内注入，不进入 Runtime、UI、数据库或日志。
-        let credential_value = "p0-fake-secret-never-serialized";
-        let credential_injected = !credential_value.is_empty();
-        Ok(json!({
-            "connectionId": connection_id,
-            "provider": "deepseek",
-            "endpoint": "https://api.deepseek.com/chat/completions",
-            "credentialInjected": credential_injected,
-            "networkPerformed": false,
-        }))
+        let request_id = message["requestId"].as_str().unwrap_or("").to_owned();
+        if request_id.is_empty() || request_id.len() > 200 { return; }
+        let method = message["method"].as_str().unwrap_or("").to_owned();
+        let params = message["params"].clone();
+        let manager = self.clone();
+        tauri::async_runtime::spawn(async move {
+            let result = manager.0.network.handle(&method, params).await;
+            if manager.status().generation != generation { return; }
+            let response = match result {
+                Ok(value) => json!({"kind":"host.response","protocolVersion":2,"requestId":request_id,"ok":true,"result":value}),
+                Err(error) => json!({"kind":"host.response","protocolVersion":2,"requestId":request_id,"ok":false,"error":if error == "REJECTED" {"REJECTED"} else {"OUTCOME_UNKNOWN"}}),
+            };
+            let _ = manager.write_message(&response);
+        });
     }
 
     fn write_message(&self, message: &Value) -> Result<(), String> {
@@ -331,6 +293,7 @@ impl RuntimeManager {
     fn handle_terminated(&self, generation: u64, code: Option<i32>) {
         let mut child = self.0.child.lock().expect("child lock poisoned");
         if child.as_ref().map(|slot| slot.generation) == Some(generation) {
+            self.0.network.cancel_all();
             *child = None;
             self.set_status(RuntimeStatus {
                 state: if code == Some(0) { "stopped" } else { "failed" }.into(),
@@ -382,7 +345,7 @@ impl RuntimeManager {
             return Err(error);
         }
 
-        match tokio::time::timeout(Duration::from_secs(5), receiver).await {
+        match tokio::time::timeout(Duration::from_secs(if method == "configuration.collect" { 600 } else { 15 }), receiver).await {
             Ok(Ok(result)) => result,
             Ok(Err(_)) => Err("Runtime 响应通道已关闭".into()),
             Err(_) => {
@@ -401,13 +364,14 @@ impl RuntimeManager {
             return Ok(json!({ "alreadyStopped": true }));
         }
 
-        let response = self.request(app, "shutdown", None).await;
+        let response = self.request(app, "runtime.shutdown", Some(json!({}))).await;
         tokio::time::sleep(Duration::from_millis(250)).await;
         self.force_kill();
         response
     }
 
     fn force_kill(&self) {
+        self.0.network.cancel_all();
         if let Ok(mut guard) = self.0.child.lock() {
             if let Some(slot) = guard.take() {
                 let _ = slot.child.kill();
@@ -426,39 +390,9 @@ fn p0_runtime_start(app: AppHandle, runtime: State<'_, RuntimeManager>) -> Resul
     runtime.start(&app)
 }
 
-#[tauri::command]
-async fn p0_runtime_ping(app: AppHandle, runtime: State<'_, RuntimeManager>) -> PendingResult {
-    runtime.request(&app, "ping", None).await
-}
 
-#[tauri::command]
-async fn p0_sqlite_probe(app: AppHandle, runtime: State<'_, RuntimeManager>) -> PendingResult {
-    let data_directory = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?
-        .join("p0-storage-probes");
-    runtime
-        .request(
-            &app,
-            "sqliteProbe",
-            Some(json!({ "dataDirectory": data_directory })),
-        )
-        .await
-}
 
-#[tauri::command]
-async fn p0_stream_probe(app: AppHandle, runtime: State<'_, RuntimeManager>) -> PendingResult {
-    runtime.request(&app, "streamProbe", None).await
-}
 
-#[tauri::command]
-async fn p0_provider_policy_probe(
-    app: AppHandle,
-    runtime: State<'_, RuntimeManager>,
-) -> PendingResult {
-    runtime.request(&app, "providerPolicyProbe", None).await
-}
 
 #[tauri::command]
 async fn p0_runtime_stop(app: AppHandle, runtime: State<'_, RuntimeManager>) -> PendingResult {
@@ -485,7 +419,7 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
                     let _ = window.set_focus();
                 }
             }
-            "quit" => app.exit(0),
+            "quit" => { let app = app.clone(); tauri::async_runtime::spawn(async move { let runtime = app.state::<RuntimeManager>(); let _ = runtime.stop(&app).await; app.exit(0); }); },
             _ => {}
         }
     });
@@ -498,6 +432,13 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let temp_directory = settings::state_directory().join("temp");
+    std::fs::create_dir_all(&temp_directory).expect("无法创建临时目录");
+    std::env::set_var("TEMP", &temp_directory);
+    std::env::set_var("TMP", &temp_directory);
+    let webview_directory = settings::state_directory().join("webview");
+    std::fs::create_dir_all(&webview_directory).expect("无法创建本地数据目录");
+    std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", webview_directory);
     let runtime = RuntimeManager::default();
     let runtime_for_setup = runtime.clone();
     let runtime_for_exit = runtime.clone();
@@ -517,52 +458,38 @@ pub fn run() {
                 .start(app.handle())
                 .map_err(std::io::Error::other)?;
 
-            let app_handle = app.handle().clone();
-            let self_test_runtime = runtime_for_setup.clone();
-            tauri::async_runtime::spawn(async move {
-                match self_test_runtime.request(&app_handle, "ping", None).await {
-                    Ok(result) => eprintln!("[p0-self-test] private IPC ping passed: {result}"),
-                    Err(error) => eprintln!("[p0-self-test] private IPC ping failed: {error}"),
-                }
-                match self_test_runtime
-                    .request(&app_handle, "streamProbe", None)
-                    .await
-                {
-                    Ok(result) => eprintln!("[p0-self-test] streaming events passed: {result}"),
-                    Err(error) => eprintln!("[p0-self-test] streaming events failed: {error}"),
-                }
-                match self_test_runtime
-                    .request(&app_handle, "providerPolicyProbe", None)
-                    .await
-                {
-                    Ok(result) => eprintln!("[p0-self-test] provider policy passed: {result}"),
-                    Err(error) => eprintln!("[p0-self-test] provider policy failed: {error}"),
-                }
-                if let Ok(data_directory) = app_handle.path().app_data_dir() {
-                    match self_test_runtime
-                        .request(
-                            &app_handle,
-                            "sqliteProbe",
-                            Some(json!({
-                                "dataDirectory": data_directory.join("p0-storage-probes")
-                            })),
-                        )
-                        .await
-                    {
-                        Ok(result) => eprintln!("[p0-self-test] SQLite migration passed: {result}"),
-                        Err(error) => eprintln!("[p0-self-test] SQLite migration failed: {error}"),
+            if std::env::var("PCHAT_ACCEPTANCE_PROBE").as_deref() == Ok("1") {
+                let handle = app.handle().clone();
+                let manager = runtime_for_setup.clone();
+                tauri::async_runtime::spawn(async move {
+                    for _ in 0..60 {
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                        let log = std::fs::read_to_string(settings::state_directory().join("acceptance.ndjson")).unwrap_or_default();
+                        if log.contains("ListRoles") && log.contains("ListConversations") && log.contains("harness.subscribe") {
+                            let ok = manager.stop(&handle).await.is_ok();
+                            handle.exit(if ok { 0 } else { 1 });
+                            return;
+                        }
                     }
-                }
-            });
+                    let _ = manager.stop(&handle).await;
+                    handle.exit(1);
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            pchat_runtime_request,
+            pchat_connection_options,
+            pchat_save_connection,
+            pchat_collect_corpus,
+            pchat_confirm_corpus,
             p0_runtime_status,
             p0_runtime_start,
-            p0_runtime_ping,
-            p0_sqlite_probe,
-            p0_stream_probe,
-            p0_provider_policy_probe,
+
+
+
+
             p0_runtime_stop,
             p0_explicit_exit,
         ])
@@ -582,41 +509,53 @@ pub fn run() {
     });
 }
 
-#[cfg(test)]
-mod tests {
-    use super::RuntimeManager;
-    use serde_json::json;
 
-    #[test]
-    fn provider_capability_returns_only_sanitized_metadata() {
-        let result = RuntimeManager::provider_capability(json!({
-            "connectionId": "deepseek:personal-default",
-            "operation": "chat.completions",
-        }))
-        .expect("approved provider connection should pass");
-        let serialized = serde_json::to_string(&result).expect("result should serialize");
-
-        assert!(serialized.contains("credentialInjected"));
-        assert!(!serialized.contains("p0-fake-secret-never-serialized"));
+#[tauri::command]
+async fn pchat_runtime_request(app: AppHandle, runtime: State<'_, RuntimeManager>, request: Value) -> PendingResult {
+    let id = request["requestId"].as_str().filter(|s| !s.is_empty() && s.len() <= 200).ok_or("请求标识无效")?;
+    let method = request["method"].as_str().ok_or("请求类型无效")?;
+    if request["protocolVersion"] != 2 || !["harness.request", "harness.subscribe", "harness.unsubscribe"].contains(&method) { return Err("请求不被允许".into()); }
+    let result = runtime.request(&app, method, Some(request["params"].clone())).await;
+    if std::env::var("PCHAT_ACCEPTANCE_PROBE").as_deref() == Ok("1") {
+        if let Ok(value) = &result {
+            use std::io::Write;
+            let operation = request["params"]["query"]["type"].as_str().unwrap_or(method);
+            if value["result"]["ok"] == true || value["subscribed"] == true {
+                let _guard = ACCEPTANCE_LOG_LOCK.lock().map_err(|_| "验收记录不可用")?;
+                if let Ok(mut log) = std::fs::OpenOptions::new().create(true).append(true).open(settings::state_directory().join("acceptance.ndjson")) {
+                    let _ = writeln!(log, "{}", json!({"operation":operation,"ok":true}));
+                }
+            }
+        }
     }
+    Ok(match result {
+        Ok(result) => json!({"kind":"runtime.response","protocolVersion":2,"requestId":id,"ok":true,"result":result}),
+        Err(_) => json!({"kind":"runtime.response","protocolVersion":2,"requestId":id,"ok":false,"error":"RUNTIME_UNAVAILABLE"}),
+    })
+}
 
-    #[test]
-    fn provider_capability_rejects_unknown_connections() {
-        let result = RuntimeManager::provider_capability(json!({
-            "connectionId": "attacker:arbitrary-host",
-            "operation": "chat.completions",
-        }));
+#[tauri::command]
+fn pchat_connection_options() -> PendingResult { settings::connection_options() }
 
-        assert!(result.is_err());
-    }
+#[tauri::command]
+async fn pchat_save_connection(app: AppHandle, runtime: State<'_, RuntimeManager>, input: settings::ConnectionInput) -> Result<(), String> {
+    let _configuration = runtime.0.configuration_lock.lock().await;
+    settings::save_connection(input)?;
+    runtime.stop(&app).await?;
+    runtime.start(&app)?;
+    Ok(())
+}
 
-    #[test]
-    fn provider_capability_rejects_unknown_operations() {
-        let result = RuntimeManager::provider_capability(json!({
-            "connectionId": "deepseek:personal-default",
-            "operation": "arbitrary.http",
-        }));
+#[tauri::command]
+async fn pchat_collect_corpus(app: AppHandle, runtime: State<'_, RuntimeManager>, input: Value) -> PendingResult {
+    runtime.request(&app, "configuration.collect", Some(input)).await
+}
 
-        assert!(result.is_err());
-    }
+#[tauri::command]
+async fn pchat_confirm_corpus(app: AppHandle, runtime: State<'_, RuntimeManager>, input: Value) -> PendingResult {
+    let _configuration = runtime.0.configuration_lock.lock().await;
+    let result = runtime.request(&app, "configuration.confirm", Some(input)).await?;
+    runtime.stop(&app).await?;
+    runtime.start(&app)?;
+    Ok(result)
 }

@@ -41,7 +41,9 @@ function stageNativeInputs() {
     ...config.build,
     beforeBuildCommand: null,
     beforeDevCommand: { script: "pnpm dev", cwd: paths.desktopDirectory },
-    frontendDist: paths.frontendDirectory,
+    // Absolute Windows paths are parsed as URLs by Tauri's FrontendDist.
+    // A relative directory embeds the assets instead of navigating to file://.
+    frontendDist: relative(paths.nativeStage, paths.frontendDirectory).replaceAll("\\", "/"),
   };
   config.bundle = {
     ...config.bundle,

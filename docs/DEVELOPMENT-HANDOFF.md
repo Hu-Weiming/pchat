@@ -117,8 +117,8 @@ interface 包括类型、状态约束、排序、错误和幂等语义。内部�
 ## 6. 当前仓库实际状态
 
 ```text
-apps/desktop/          P0 React 诊断界面与 Tauri Rust Host
-apps/runtime-windows/  P0 Node Runtime、SQLite 与私有协议 probe
+apps/desktop/          正式 React 操作页面与 Tauri Rust Host
+apps/runtime-windows/  正式 Node composition、SQLite、私有协议与知识库配置
 packages/contracts/    P0 probe 与正式 Harness 协议、投影和 Zod schema
 packages/harness/      P1 纯 TypeScript 领域核心与 ports
 packages/testing/      InMemoryStore、可控模型/检索替身、时钟与 ID
@@ -136,7 +136,7 @@ P0 代码已证明以下能力可行：
 - `connectionId`、供应商允许清单和假密钥不泄露结构；
 - NSIS 构建与安装。
 
-P1 已实现正式 Harness 契约、单人物轮次、FIFO、幂等、停止/恢复、快照和事件书签；完整门禁137项测试及类型、依赖、无平台闭环通过。`apps/desktop/src/App.tsx` 仍是 P0 诊断界面。正式 SQLite schema、生产模型/RAG adapter、正式 UI 和人工确认的人物内容待后续阶段实现。仓库中没有真实 API Key。
+P1 已实现正式 Harness 契约、单人物轮次、FIFO、幂等、停止/恢复、快照和事件书签，原137项门禁保持。后续已实现 SQLite v4、多人物、上下文预算、DeepSeek/千帆 adapter、正式 UI、Host 安全网络和 DPAPI 凭证保存；全量329项测试通过。当前收口 Windows 0.1.0 安装验收，结果见唯一进度文档。真实 Key、人物资料与在线内容质量尚待用户准备，不能把工程检查视为真实账户验收。
 
 构建产物、`node_modules`、数据库、临时目录、捆绑 Node 二进制和 Tauri 生成 schema 已被 `.gitignore` 排除。历史构建缓存可能仍占用本地磁盘，但不属于 Git 内容。
 
@@ -205,7 +205,7 @@ D:\Dev\logs\pchat
 
 - 首个 RAG adapter 已由用户选定为百度千帆：用户在控制台上传文档，Pchat 检索；未来开发机 RAG 通过同一 port 扩展，本次不实现。真实哲学资料尚未准备，召回与引用评测仍待完成。
 - DeepSeek 是首个模型 adapter，但型号、参数、端点和 Key 均不能写进领域核心或人物包。
-- CredentialVault 目前只有假凭证边界验证，真实 Windows 凭证保存尚待实现。
+- Windows Host 已实现当前用户 DPAPI 凭证加密并通过本机加解密测试；真实账户授权及跨用户迁移不在已通过范围。
 - P0 证明 sidecar 可打包和管理，不等于业务状态机、付费调用恢复和长期升级已经可靠。
 - 模型供应商通常无法提供 Pchat 可验证的 exactly-once；崩溃后的不确定调用必须由用户决定是否重新生成。
 - 上下文预算百分比是待真实模型校准的执行策略，不是固定领域规则。

@@ -10,6 +10,7 @@
 . D:\Dev\pchat-env.ps1
 pnpm install --offline # 依赖已缓存时；首次安装去掉 --offline
 pnpm check
+pnpm check:tests
 pnpm test
 pnpm check:deps
 pnpm check:portable
@@ -43,4 +44,10 @@ Vite 使用 `--configLoader runner`，前端输出清理仅作用于专用的前
 
 开发版 Host 从开发输出根目录读取 Runtime；发布版从安装资源读取捆绑 Runtime。正式发行版不启动 localhost 服务，Vite 本地服务器仅用于开发模式。
 
-已完成的本机验证包括 Runtime/前端构建、原生暂存、Tauri 配置识别与捆绑 Node 的 ready/ping/shutdown。原生编译、安装及正式产品行为另按当前阶段门槛验证。
+暂存配置中的 `frontendDist` 必须使用相对目录（当前为 `../frontend`）。Windows 绝对路径会被 Tauri 解析为 URL，导致页面未嵌入并导航到本地目录；安装检查已实际复现此问题。
+
+正式安装产物为 `cargo-target/pchat/release/bundle/nsis/Pchat Agent_0.1.0_x64-setup.exe`。本机使用 `/S /NS /D=D:\Dev\apps\Pchat` 安装；`/NS` 不创建快捷方式，`/D` 必须位于参数末尾。旧版 Pchat P0 保留。
+
+应用运行时将 TEMP/TMP 和 WebView 数据目录设置在状态目录下，默认 `D:\Dev\state\pchat`，可通过当前进程 `PCHAT_DEV_ROOT` 指定另一输出根。SQLite、配置、DPAPI 加密凭证和知识库确认草稿也位于该状态目录。没有设置系统环境变量。
+
+本机已完成 Runtime/前端构建、Rust 发布编译、NSIS 安装、捆绑 Node 的真实目录查询与持久暂停退出，以及 DPAPI 加解密测试。安装后的真实页面查询与事件订阅由 `scripts/verify-installed.ps1` 检查；具体结果见 [开发进度](./DEVELOPMENT-PROGRESS.md)，操作步骤见 [Windows 验收](./WINDOWS-ACCEPTANCE.md)。

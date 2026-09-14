@@ -1,6 +1,6 @@
 # Pchat 当前开发进度
 
-更新日期：2026-09-14。当前阶段：核心、上下文预算与SQLite持久化已接通；正式页面与原生网络/凭证正在集成，继续知识库配置和安装验收。
+更新日期：2026-09-14。当前阶段：Windows 0.1.0 可操作验收版已安装，正式页面、SQLite、供应商接口、原生网络/凭证与知识库配置已接通；安装页查询/订阅/退出清理通过，真实账户与内容验收等待用户准备 Key 和资料。
 
 本文件是本次开发唯一的进度入口，每个开发步骤和提交前更新。产品规则仍以产品共识和运行不变量为准；实施细节见 [P1 工作流](./P1-WORKFLOW.md)。
 
@@ -27,11 +27,11 @@
 | P1 完整验收 | 已完成 | pnpm check:p1：14 文件、137 测试，业务/测试类型、依赖和无平台闭环全部通过；独立审计发现两处问题，修复后回归通过 |
 | P2–P5 优化 | 已完成 | 多人物工程前移 P3，千帆与安装工程收口 P5；真实内容评测保留独立门槛 |
 | P2 SQLite Store | 已完成 | 16项测试、workspace/测试类型通过：持久化、事务、独占、迁移、备份、真实进程中断恢复、FIFO/停止/书签与差异写入 |
-| P3 client 契约 | 进行中 | 15项client及12项Windows通道测试通过：版本2、相关性、书签/缺口、挂起退订、背压/缓冲上限；继续正式Host接线 |
+| P3 client 契约 | 已完成 | 15项client及12项Windows通道测试通过；正式Host与安装页面已接线 |
 | P3 多人物与上下文 | 基础执行完成 | 1–3人物、独立快照/调度、共享预算、停止与未知重做；按窗口保留完整历史/摘录检查点，SQLite v4保存实际MODEL输入；语义对照仍需深化 |
-| P5 DeepSeek独立adapter | 进行中 | 41项离线ModelPort测试通过；网络/凭证Host与真实账户未接入 |
-| P5 千帆独立adapter | 进行中 | 44项离线RAGPort测试通过；严格确认清单/版本/hash核验；自动只读清单采集继续实施 |
-| P4 UI、P5 Host/安装 | 进行中 | 正式Atelier页面、Windows client通道与Host装配开发中 |
+| P5 DeepSeek独立adapter | 工程接入完成 | 41项离线ModelPort测试通过；Host白名单网络与DPAPI凭证已装配，真实账户待验证 |
+| P5 千帆独立adapter | 工程接入完成 | 46项RAG与10项采集测试通过；设置页可只读采集、人工确认并启用资料版本，真实账户待验证 |
+| P4 UI、P5 Host/安装 | 工程验收通过，待用户操作验收 | 正式Atelier页面、Host与Runtime、发布编译及D盘安装通过；真实安装页查询/订阅/退出清理通过；修复Windows绝对前端路径被解释成URL及验收日志并发写入问题 |
 
 ## TDD 记录
 
@@ -72,12 +72,14 @@
 - 15:47全量325项通过；工作区类型、测试类型、依赖门禁与无平台问答通过。上下文保存执行策略、完整历史及本次实际输入；检查点只摘录问题/原答案，未验证语义字段留空；SQLite v4独立保存输入审计。生产暂用UTF-8保守预算，真实供应商token统计待账户验证。
 - 18:16正式页面生产构建通过，已检查窄屏布局和设置窗口；页面通过PchatClient接Tauri，主入口已从P0诊断替换为SQLite/Harness/供应商适配器。捆绑Node真实进程的ready→空目录查询→持久暂停退出通过（production-runtime-smoke.json）。Rust网络/凭证编译通过，Windows DPAPI加解密实际测试通过。尚无真实Key/资料，没有宣称真实检索/计费验收通过。
 - 18:29全量329项通过：包含清单读取→人工确认→新Runtime目录可见的真实文件/SQLite集成，以及私有网络UTF-8分片。千帆生产绑定通过详情原值+实际检索文本hash核验，避开未证实的时间单位转换。安装包已进入NSIS打包；安装及正式窗口接线仍待验证。
+- 18:46最终329项测试、工作区/测试类型、依赖与无平台检查通过，Rust发布构建通过。NSIS 0.1.0在 `D:\Dev\apps\Pchat` 安装成功。安装脚本对旧包实际失败，修复后真实页面成功执行 ListRoles、ListConversations、harness.subscribe，退出后无捆绑Runtime残留。证据：`D:\Dev\temp\pchat\installed-acceptance-cf77f242-ef19-44c5-b95b-d2b3ea54cff7\result.json`。没有启动Vite或供应商请求。
+- 最终安装包 SHA256：`197A1F03365E6CC8E987DE629265BE7AF0E42899E3558784C389CB27C8D54498`。操作和配置步骤见 [Windows验收指南](./WINDOWS-ACCEPTANCE.md)。未使用真实Key、未导入用户真实资料，语义对照/内容质量/签名分发不宣称已完成。
 
 ## 本地环境
 
 所有安装、测试和检查前在当前命令中加载仓库外的本地环境配置。TEMP/TMP、npm/pnpm 缓存、pnpm virtual store、Node 编译缓存与输出根目录都在用户指定 D 盘开发根目录。机器绝对路径不加入共享工具配置。测试工具通过 `PCHAT_DEV_ROOT` 派生缓存、覆盖率和构建输出路径。
 
-构建包装脚本现自动设置自身/子进程的输出与缓存环境，Runtime/前端产物及Tauri暂存工程均在开发根目录；详见 [构建说明](./BUILDING.md)。Runtime/前端构建、暂存、Tauri info与捆绑Node通信冒烟通过，尚未运行原生编译/安装。
+构建包装脚本自动设置自身/子进程的输出与缓存环境，Runtime/前端产物及Tauri暂存工程均在开发根目录；详见 [构建说明](./BUILDING.md)。Rust发布编译及NSIS安装已执行。安装目录为 `D:\Dev\apps\Pchat`，运行状态和WebView数据也在D盘。安装冒烟临时覆盖 `PCHAT_DEV_ROOT` 并启用 `PCHAT_ACCEPTANCE_PROBE`，脚本结束恢复原值；诊断WebView日志参数只用于一次测试进程。
 
 没有修改系统环境、C 盘系统目录或已安装软件配置。具体本地路径随执行在对话中逐项报告。
 
@@ -109,6 +111,7 @@
 15. `feat(runtime): suspend durably across private pipe shutdown`：有界管道解析、并发请求与持久暂停生命周期；后续由正式启动入口装配。
 16. `feat(context): persist budgeted model inputs and extractive checkpoints`：按冻结窗口预算选取模型输入、原始历史保留、可审计摘录与SQLite v4。
 17. `feat(qianfan): collect reviewable manifests and verify detail revisions`：只读分页采集、内容hash与详情版本核验；不需要用户填写哈希值。
+18. `feat(desktop): deliver installed Windows workspace and secure provider setup`：正式前端、DPAPI凭证、Host受限网络、SQLite Runtime装配、千帆确认入口、安装冒烟与操作指南；329项及真实安装接线通过。
 
 ## 待后续阶段验证的风险
 

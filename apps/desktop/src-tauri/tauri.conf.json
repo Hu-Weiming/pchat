@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Pchat P0",
-  "version": "0.0.0",
+  "productName": "Pchat Agent",
+  "version": "0.1.0",
   "identifier": "com.pchat.agent",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -13,11 +13,11 @@
     "windows": [
       {
         "label": "main",
-        "title": "Pchat P0 技术验证",
-        "width": 820,
-        "height": 680,
-        "minWidth": 640,
-        "minHeight": 520,
+        "title": "Pchat · 思想之间",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 860,
+        "minHeight": 620,
         "center": true
       }
     ],
@@ -27,9 +27,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "icon": [],
-    "externalBin": ["binaries/pchat-node"],
+    "externalBin": [
+      "binaries/pchat-node"
+    ],
     "resources": {
       "../../runtime-windows/dist/main.mjs": "runtime/main.mjs"
     }
