@@ -25,6 +25,7 @@ export function snapshotQianfanConfiguration(config: QianfanConfiguration): Qian
     documents.add(document.documentId);
     for (const chunk of document.chunks) {
       const time = chunk.expectedUpdateTime;
+      if (chunk.revisionSource !== undefined && chunk.revisionSource !== "SEARCH" && chunk.revisionSource !== "DETAIL") throw new Error("Invalid revision source");
       if (!id(chunk.chunkId) || chunks.has(chunk.chunkId) || !validSha256(chunk.expectedSha256) || !optionalText(chunk.locator) ||
         !(id(time) || (typeof time === "number" && Number.isSafeInteger(time) && time >= 0))) throw new Error("Invalid chunk manifest");
       chunks.add(chunk.chunkId);

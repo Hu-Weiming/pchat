@@ -71,6 +71,7 @@
 - Runtime私有会话增加7项：分片UTF-8、暂停提交后再确认退出、宿主管道丢失保留UNKNOWN、1MiB帧和64个待处理请求上限、暂停写入失败不虚报成功、坏编码/截断输入停止。01:35 Runtime包类型检查及全部19项桌面通信测试通过。Rust原生暂存基线cargo check通过（1m48s）；尚未装配正式main/Host，不能替代最终安装验收。
 - 15:47全量325项通过；工作区类型、测试类型、依赖门禁与无平台问答通过。上下文保存执行策略、完整历史及本次实际输入；检查点只摘录问题/原答案，未验证语义字段留空；SQLite v4独立保存输入审计。生产暂用UTF-8保守预算，真实供应商token统计待账户验证。
 - 18:16正式页面生产构建通过，已检查窄屏布局和设置窗口；页面通过PchatClient接Tauri，主入口已从P0诊断替换为SQLite/Harness/供应商适配器。捆绑Node真实进程的ready→空目录查询→持久暂停退出通过（production-runtime-smoke.json）。Rust网络/凭证编译通过，Windows DPAPI加解密实际测试通过。尚无真实Key/资料，没有宣称真实检索/计费验收通过。
+- 18:29全量329项通过：包含清单读取→人工确认→新Runtime目录可见的真实文件/SQLite集成，以及私有网络UTF-8分片。千帆生产绑定通过详情原值+实际检索文本hash核验，避开未证实的时间单位转换。安装包已进入NSIS打包；安装及正式窗口接线仍待验证。
 
 ## 本地环境
 
@@ -107,6 +108,7 @@
 14. `feat(desktop): bridge client commands and bookmarked events`：平台bridge注入、Windows通道与取消/重连协议；正式进程和Rust命令尚待装配。
 15. `feat(runtime): suspend durably across private pipe shutdown`：有界管道解析、并发请求与持久暂停生命周期；后续由正式启动入口装配。
 16. `feat(context): persist budgeted model inputs and extractive checkpoints`：按冻结窗口预算选取模型输入、原始历史保留、可审计摘录与SQLite v4。
+17. `feat(qianfan): collect reviewable manifests and verify detail revisions`：只读分页采集、内容hash与详情版本核验；不需要用户填写哈希值。
 
 ## 待后续阶段验证的风险
 

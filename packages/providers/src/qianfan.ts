@@ -4,6 +4,7 @@ import type { Cancellation, RAGPort, RetrievalRequest, RetrievalResult } from "@
 import type { JsonObject, SecureNetworkPort } from "./network";
 import { snapshotQianfanConfiguration, validSha256 } from "./qianfan-configuration";
 import { CancellationScope, closeStream } from "./cancellation";
+import { readCollectionObject } from "./qianfan-collector-io";
 
 export interface QianfanBinding {
   connectionId: string;
@@ -14,6 +15,7 @@ export interface QianfanBinding {
 export interface QianfanChunkManifest {
   chunkId: string;
   expectedUpdateTime: string | number;
+  revisionSource?: "SEARCH" | "DETAIL";
   expectedSha256: string;
   locator: string | null;
 }
@@ -105,7 +107,7 @@ export class QianfanRAG implements RAGPort {
         const documentId = chunk.meta.doc_info.doc_id;
         const document = config.documents.find((document) => document.documentId === documentId);
         const expected = document?.chunks.find((item) => item.chunkId === chunk.chunk_id);
-        if (!document || !expected || chunk.meta.update_time !== expected.expectedUpdateTime) return { ok: false, code: "REJECTED" };
+        if (!document || !expected || (expected.revisionSource !== "DETAIL" && chunk.meta.update_time !== expected.expectedUpdateTime)) return { ok: false, code: "REJECTED" };
         const parts: string[] = [];
         for (const part of chunk.content) {
           if (!record(part) || part.type !== "text" || !string(part.text)) return { ok: false, code: "REJECTED" };
@@ -114,6 +116,10 @@ export class QianfanRAG implements RAGPort {
         const text = parts.join("\n");
         const digest = await scope.wait(this.options.hasher.sha256(text));
         if (!validSha256(digest) || digest !== expected.expectedSha256) return { ok: false, code: "REJECTED" };
+        if (expected.revisionSource === "DETAIL") {
+          const detail = await readCollectionObject(this.options.network, { operation: "qianfan.chunk", connectionId: binding.connectionId, attemptId: request.attemptId, body: { knowledgeBaseId: config.knowledgebaseId, chunkId: expected.chunkId } }, cancellation, scope, 8_000_000);
+          if (detail.id !== expected.chunkId || detail.documentId !== document.documentId || detail.knowledgeBaseId !== config.knowledgebaseId || detail.enabled !== true || !["Indexed", "indexed"].includes(String(detail.status)) || detail.updateTime !== expected.expectedUpdateTime || detail.content !== text) return { ok: false, code: "REJECTED" };
+        }
         const id = await scope.wait(this.options.hasher.sha256(JSON.stringify([binding.connectionId, config.knowledgebaseId, document.documentId, chunk.chunk_id, document.sourceRevision, digest])));
         if (!validSha256(id)) return { ok: false, code: "REJECTED" };
         evidence.push(EvidenceSchema.parse({

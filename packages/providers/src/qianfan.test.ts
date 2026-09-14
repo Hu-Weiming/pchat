@@ -42,6 +42,13 @@ class TestCancellation implements Cancellation {
 }
 
 describe("Qianfan RAGPort", () => {
+  test.each([true, false])("verifies collected detail revisions without guessing search timestamp units (unchanged=%s)", async (unchanged) => {
+    const collected: QianfanConfiguration = { ...config, documents: [{ ...config.documents[0]!, chunks: [{ ...config.documents[0]!.chunks[0]!, expectedUpdateTime: 1755578217, revisionSource: "DETAIL" }] }] };
+    const rag = new QianfanRAG({ hasher, configurations: { resolve: () => collected }, network: { request: async (call) => ({ ok: true, status: 200, body: (async function* () {
+      yield JSON.stringify(call.operation === "qianfan.search" ? payload : { requestId: "detail", id: "own-chunk", documentId: "own-document", knowledgeBaseId: "own-kb", enabled: true, status: "Indexed", content: "abc", updateTime: unchanged ? 1755578217 : 1755578218 });
+    })() }) } });
+    expect(await rag.retrieve(request, cancellation)).toMatchObject(unchanged ? { ok: true, evidence: [{ text: "abc" }] } : { ok: false, code: "REJECTED" });
+  });
   test("does not send an already-cancelled retrieval", async () => {
     const { rag, calls } = fixture();
     const token = new TestCancellation(); token.cancel();
