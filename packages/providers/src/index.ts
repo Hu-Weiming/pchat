@@ -1,4 +1,7 @@
 export { DeepSeekModel } from "./deepseek";
+export { DeepSeekDiscussionModel, DEEPSEEK_DISCUSSION_PROMPT_VERSION } from "./deepseek-discussion";
+export { QianfanWorkflowRAG, snapshotWorkflowConfiguration } from "./qianfan-workflow";
+export type { QianfanWorkflowConfiguration } from "./qianfan-workflow";
 export { renderDeepSeekPrompt, DEEPSEEK_PROMPT_VERSION } from "./deepseek-prompt";
 export { QianfanManifestCollector } from "./qianfan-collector";
 export type { QianfanManifestDraft } from "./qianfan-collector";

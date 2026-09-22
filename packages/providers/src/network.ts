@@ -6,7 +6,7 @@ export interface SecureNetworkRequest {
   connectionId: string;
   /** Correlation and cancellation only; never promises supplier idempotency. */
   attemptId: string;
-  operation: "deepseek.chat" | "qianfan.search" | "qianfan.documents" | "qianfan.chunks" | "qianfan.chunk";
+  operation: "deepseek.chat" | "qianfan.search" | "qianfan.documents" | "qianfan.chunks" | "qianfan.chunk" | "qianfan.conversation" | "qianfan.workflow";
   body: JsonObject;
 }
 export type SecureNetworkResponse =

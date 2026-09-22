@@ -34,6 +34,11 @@ class TestCancellation implements Cancellation {
 }
 
 describe("DeepSeek ModelPort", () => {
+  test("explicitly disables provider thinking for the bounded answer budget", async () => {
+    const { model, calls } = fixture([event(JSON.stringify(answer), "stop"), "data: [DONE]\n\n"]);
+    expect((await collect(model)).at(-1)).toEqual({ type: "complete", answer });
+    expect(calls[0]?.body.thinking).toEqual({ type: "disabled" });
+  });
   test("closes the response when cancellation races between header completion and the adapter resuming", async () => {
     const token = new TestCancellation();
     let deliver = (_response: SecureNetworkResponse) => {};

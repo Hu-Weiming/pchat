@@ -14,7 +14,7 @@ export const rawTime = (value: unknown): value is string | number => nonblank(va
 
 /** A complete response is consumed before interpreting its status. This also
  * limits discarded error bodies and fences resources arriving after cancel. */
-export async function readCollectionObject(network: SecureNetworkPort, request: SecureNetworkRequest, cancellation: Cancellation, scope: CancellationScope, maximum: number): Promise<Record<string, unknown>> {
+export async function readCollectionObject(network: SecureNetworkPort, request: SecureNetworkRequest, cancellation: Cancellation, scope: CancellationScope, maximum: number, requestIdField = "requestId"): Promise<Record<string, unknown>> {
   let stream: AsyncIterator<string> | undefined;
   let closed = false;
   const release = () => { closeStream(stream); stream = undefined; };
@@ -42,7 +42,7 @@ export async function readCollectionObject(network: SecureNetworkPort, request: 
     }
     if (response.status !== 200) throw new CollectionFailure(Number.isInteger(response.status) && response.status >= 400 && response.status < 500 ? "REJECTED" : "OUTCOME_UNKNOWN");
     const value: unknown = JSON.parse(body);
-    requireCollection(object(value) && nonblank(value.requestId) && !("code" in value) && !("error" in value));
+    requireCollection(object(value) && nonblank(value[requestIdField]) && !("code" in value) && !("error" in value));
     return value;
   } finally {
     closed = true;

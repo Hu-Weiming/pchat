@@ -48,6 +48,7 @@ export class DeepSeekModel implements ModelPort {
       }
       const body: JsonObject = {
         model: binding.modelId,
+        thinking: { type: "disabled" },
         stream: true, response_format: { type: "json_object" }, max_tokens: policy?.outputReserveTokens ?? config.maxOutputTokens,
         ...(config.temperature !== undefined ? { temperature: config.temperature } : {}),
         ...(config.topP !== undefined ? { top_p: config.topP } : {}),
