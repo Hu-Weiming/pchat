@@ -46,7 +46,7 @@ Vite 使用 `--configLoader runner`，前端输出清理仅作用于专用的前
 
 暂存配置中的 `frontendDist` 必须使用相对目录（当前为 `../frontend`）。Windows 绝对路径会被 Tauri 解析为 URL，导致页面未嵌入并导航到本地目录；安装检查已实际复现此问题。
 
-正式安装产物为 `cargo-target/pchat/release/bundle/nsis/Pchat Agent_0.1.0_x64-setup.exe`。本机使用 `/S /NS /D=D:\Dev\apps\Pchat` 安装；`/NS` 不创建快捷方式，`/D` 必须位于参数末尾。旧版 Pchat P0 保留。
+正式安装产物为 `cargo-target/pchat/release/bundle/nsis/Pchat Agent_0.1.1_x64-setup.exe`。本机使用 `/S /NS /D=D:\Dev\apps\Pchat` 安装；`/NS` 不创建快捷方式，`/D` 必须位于参数末尾。旧版 Pchat P0 保留。
 
 应用运行时将 TEMP/TMP 和 WebView 数据目录设置在状态目录下，默认 `D:\Dev\state\pchat`，可通过当前进程 `PCHAT_DEV_ROOT` 指定另一输出根。SQLite、配置、DPAPI 加密凭证和知识库确认草稿也位于该状态目录。没有设置系统环境变量。
 

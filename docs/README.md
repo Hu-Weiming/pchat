@@ -4,6 +4,8 @@
 
 正式开发从 [`DEVELOPMENT-HANDOFF.md`](./DEVELOPMENT-HANDOFF.md) 开始；该文档说明当前实现、阶段任务、验收条件和开发环境约束。
 
+新对话接管的当前快照见 [`NEXT-SESSION-HANDOFF.md`](./NEXT-SESSION-HANDOFF.md)；它列出大任务、关键文件、计划、当前位置、下一步及仓库外的私有凭证位置。
+
 当前实施进度、验证证据与提交记录统一见 [`DEVELOPMENT-PROGRESS.md`](./DEVELOPMENT-PROGRESS.md)。P1 工作流与状态表见 [`P1-WORKFLOW.md`](./P1-WORKFLOW.md)，后续优化计划见 [`P2-P5-IMPLEMENTATION-PLAN.md`](./P2-P5-IMPLEMENTATION-PLAN.md)。
 
 本机构建命令、D 盘输出与缓存配置见 [`BUILDING.md`](./BUILDING.md)。

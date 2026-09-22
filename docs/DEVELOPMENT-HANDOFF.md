@@ -230,4 +230,4 @@ D:\Dev\logs\pchat
 
 可将下面内容直接作为新开发对话的第一条消息：
 
-> 请继续 `D:\Pchat` 的正式开发。先完整阅读根目录 `AGENTS.md` 和 `docs/DEVELOPMENT-HANDOFF.md`，再按权威顺序核对实现及 `docs/DEVELOPMENT-PROGRESS.md`。保持 P1 验收通过，按 `docs/P2-P5-IMPLEMENTATION-PLAN.md` 持续开发至可操作的 Windows 产品验收。首个模型 adapter 为 DeepSeek，首个 RAG adapter 为百度千帆独立检索；用户稍后填写 Key 和准备知识库，在线及内容评测不得虚报通过。所有构建输出、缓存、日志和临时文件放到 `D:\Dev`，修改配置后逐项报告。采用 TDD、完整验证并分步提交到本地 Git，不推送。
+> 请继续 `D:\Pchat` 的正式开发。先完整阅读根目录 `AGENTS.md` 和 `docs/DEVELOPMENT-HANDOFF.md`，再按权威顺序核对实现及 `docs/DEVELOPMENT-PROGRESS.md`。保持 P1 验收通过，按 `docs/P2-P5-IMPLEMENTATION-PLAN.md` 持续开发至可操作的 Windows 产品验收。首个模型 adapter 为 DeepSeek，首个 RAG adapter 为百度千帆独立检索；用户稍后填写 Key 和准备知识库，在线及内容评测不得虚报通过。所有构建输出、缓存、日志和临时文件放到 `D:\Dev`，修改配置后逐项报告。采用 TDD、完整验证；Git 提交与推送遵循根目录 AGENTS.md。
