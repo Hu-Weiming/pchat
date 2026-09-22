@@ -8,7 +8,7 @@ export const ModelBindingSchema = z.strictObject({
   configRevision: Id,
 });
 export const ConversationSettingsSchema = z.strictObject({
-  participantIds: z.array(Id).min(1).max(3).refine((ids) => new Set(ids).size === ids.length),
+  participantIds: z.array(Id).max(3).refine((ids) => new Set(ids).size === ids.length),
   knowledgeMode: KnowledgeModeSchema,
   model: ModelBindingSchema,
   ragConnectionId: Id,
@@ -25,6 +25,7 @@ export const HarnessCommandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("StopTurn"), commandId: Id, turnId: Id }),
   z.strictObject({ type: z.literal("ResumeQueue"), commandId: Id, conversationId: Id }),
   z.strictObject({ type: z.literal("RegenerateRole"), commandId: Id, roleRunId: Id }),
+  z.strictObject({ type: z.literal("RegenerateDiscussion"), commandId: Id, turnId: Id }),
   z.strictObject({ type: z.literal("SuspendRuntime"), commandId: Id }),
   z.strictObject({ type: z.literal("WithdrawQuestion"), commandId: Id, questionId: Id }),
   z.strictObject({ type: z.literal("ChangeParticipants"), commandId: Id, conversationId: Id, participantIds: ConversationSettingsSchema.shape.participantIds }),
@@ -73,11 +74,13 @@ export type ConversationProjection = z.infer<typeof ConversationProjectionSchema
 export const ThoughtStagePackageSchema = z.strictObject({
   id: Id, revision: Id, label: z.string().min(1), status: z.enum(["CONFIRMED", "DRAFT"]),
   corpusId: Id, corpusRevision: Id, retrievalConfigRevision: Id, promptPolicyRevision: Id,
+  group: Id.optional(),
 });
 export const EvidenceSchema = z.strictObject({
   id: Id, corpusId: Id, corpusRevision: Id, sourceId: Id, sourceRevision: Id,
   text: z.string().min(1), contentHash: Id, locator: z.string().nullable(), workTitle: z.string().nullable(),
   edition: z.string().nullable(), translator: z.string().nullable(), kind: z.enum(["PRIMARY", "RESEARCH"]),
+  sourceExcerpt: z.strictObject({ datasetId: Id, segmentId: Id, originalChunkId: Id.nullable(), originalChunkOffset: z.number().nullable(), sourceContentHash: Id, start: z.number().int().min(0), end: z.number().int().min(1) }).optional(),
 });
 export const AnswerSchema = z.strictObject({
   text: z.string().min(1), kind: z.enum(["PARAPHRASE", "QUOTE", "INFERENCE", "FICTION", "INSUFFICIENT_EVIDENCE"]), evidenceIds: z.array(Id),
@@ -102,7 +105,7 @@ export const ContextSnapshotSchema = z.strictObject({
 });
 export const TurnContextSnapshotSchema = z.strictObject({
   question: ContextSnapshotSchema.shape.question, settings: ConversationSettingsSchema,
-  participants: z.array(ThoughtStagePackageSchema).min(1).max(3), history: ContextSnapshotSchema.shape.history,
+  participants: z.array(ThoughtStagePackageSchema).max(3), history: ContextSnapshotSchema.shape.history,
 });
 export const ModelInputContentSchema = z.strictObject({
   context: ContextSnapshotSchema, evidence: z.array(EvidenceSchema), checkpoint: ConversationCheckpointSchema.nullable(),
@@ -129,10 +132,48 @@ export const ComparisonProjectionSchema = z.strictObject({
   columns: z.array(z.strictObject({ roleRunId: Id, participantId: Id, participantLabel: z.string(), answer: AnswerSchema })).min(2).max(3),
   excludedRoleRunIds: z.array(Id),
 });
+export const DiscussionPlanSchema = z.strictObject({
+  philosophicalQuestion: z.string().trim().min(1).max(4000),
+  userClaims: z.array(z.string().trim().min(1).max(2000)).max(8),
+  targets: z.array(z.strictObject({ roleId: Id, searchQuery: z.string().trim().min(1).max(2000) })).min(1).max(3),
+});
+export const PlanningInputSchema = z.strictObject({
+  question: ContextSnapshotSchema.shape.question, settings: ConversationSettingsSchema,
+  maxParticipants: z.number().int().min(1).max(3).optional(),
+  catalog: z.array(ThoughtStagePackageSchema).min(1).max(30), executionPolicy: ModelExecutionPolicySchema,
+});
+export const DiscussionInputSchema = z.strictObject({
+  question: ContextSnapshotSchema.shape.question, settings: ConversationSettingsSchema,
+  plan: DiscussionPlanSchema, history: ContextSnapshotSchema.shape.history,
+  participants: z.array(z.strictObject({ participant: ThoughtStagePackageSchema, evidence: z.array(EvidenceSchema) })).min(1).max(3),
+  executionPolicy: ModelExecutionPolicySchema,
+});
+export const DiscussionAnswerSchema = z.strictObject({
+  answers: z.array(z.strictObject({ roleId: Id, answer: AnswerSchema })).min(1).max(3),
+  commentary: z.strictObject({ text: z.string().max(2000), claimIndexes: z.array(z.number().int().min(0)).max(8) }),
+  summary: z.strictObject({ text: z.string().max(6000), roleIds: z.array(Id).max(3) }),
+});
+export const DiscussionStateSchema = z.strictObject({
+  status: z.enum(["PLANNING", "RETRIEVING", "GENERATING", "COMPLETED", "WAITING_USER", "STOPPED", "FAILED"]),
+  planningInput: PlanningInputSchema, plan: DiscussionPlanSchema.nullable(),
+  attempts: z.array(z.strictObject({
+    id: Id, kind: z.enum(["PLAN", "RAG", "DISCUSSION"]), roleId: Id.nullable(), status: AttemptStatusSchema,
+    previousAttemptId: Id.nullable(), reservedCostUnits: z.number().min(0),
+    input: z.union([PlanningInputSchema, DiscussionInputSchema]).nullable(),
+    drafts: z.array(z.strictObject({ roleId: Id, text: z.string() })).max(3).optional(),
+  })),
+  commentary: DiscussionAnswerSchema.shape.commentary.nullable(), summary: DiscussionAnswerSchema.shape.summary.nullable(), errorCode: z.string().nullable(),
+});
+export type DiscussionPlan = z.infer<typeof DiscussionPlanSchema>;
+export type PlanningInput = z.infer<typeof PlanningInputSchema>;
+export type DiscussionInput = z.infer<typeof DiscussionInputSchema>;
+export type DiscussionAnswer = z.infer<typeof DiscussionAnswerSchema>;
+export type DiscussionState = z.infer<typeof DiscussionStateSchema>;
 export const TurnProjectionSchema = z.strictObject({
   id: Id, conversationId: Id, questionId: Id, status: TurnStatusSchema,
-  context: TurnContextSnapshotSchema, roleRuns: z.array(RoleRunProjectionSchema).min(1).max(3),
+  context: TurnContextSnapshotSchema, roleRuns: z.array(RoleRunProjectionSchema).max(3),
   comparison: ComparisonProjectionSchema.nullable(),
+  discussion: DiscussionStateSchema.optional(),
 });
 export type ThoughtStagePackage = z.infer<typeof ThoughtStagePackageSchema>;
 export type Evidence = z.infer<typeof EvidenceSchema>;

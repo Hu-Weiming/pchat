@@ -7,7 +7,7 @@ import { migrateToVersionThree } from "./migrate-v3";
 import { readState } from "./records";
 
 const APPLICATION_ID = 0x50434854;
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const INDEXES_SQL = `CREATE INDEX idx_questions_queue ON questions(conversation_id, status, ordinal);
   CREATE INDEX idx_turns_status ON turns(status);
   CREATE INDEX idx_attempts_status ON external_attempts(status);`;
@@ -70,8 +70,12 @@ export async function initializeDatabase(database: DatabaseSync, backupDirectory
         migrateToVersionThree(database);
         database.prepare("INSERT INTO schema_migrations VALUES (?, ?)").run(3, new Date().toISOString());
       }
-      database.exec(MODEL_INPUTS_SQL);
-      database.exec("ALTER TABLE questions ADD COLUMN execution_policy_json TEXT");
+      if (version < 4) {
+        database.exec(MODEL_INPUTS_SQL);
+        database.exec("ALTER TABLE questions ADD COLUMN execution_policy_json TEXT");
+        database.prepare("INSERT INTO schema_migrations VALUES (?, ?)").run(4, new Date().toISOString());
+      }
+      database.exec("ALTER TABLE turns ADD COLUMN discussion_json TEXT");
     }
     database.prepare("INSERT INTO schema_migrations VALUES (?, ?)").run(SCHEMA_VERSION, new Date().toISOString());
     database.exec(`PRAGMA application_id = ${APPLICATION_ID}; PRAGMA user_version = ${SCHEMA_VERSION}`);

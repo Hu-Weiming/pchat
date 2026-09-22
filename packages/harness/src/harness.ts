@@ -28,6 +28,10 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
   const { store, ids, clock } = dependencies;
   const roles = copy(dependencies.roles);
   const selectParticipants = (participantIds: readonly string[]): ThoughtStagePackage[] | null => {
+    if (participantIds.length === 0) {
+      const catalog = roles.filter((item) => item.status === "CONFIRMED");
+      return dependencies.discussionModel && catalog.length > 0 && catalog.length <= 30 ? catalog : null;
+    }
     const selected: ThoughtStagePackage[] = [];
     for (const id of participantIds) {
       const role = roles.find((item) => item.id === id && item.status === "CONFIRMED");
@@ -72,6 +76,7 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
           const executionPolicy = dependencies.modelExecution.policies.find((policy) => JSON.stringify(policy.binding) === JSON.stringify(conversation?.settings.model));
           if (!conversation || !participants) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("NOT_FOUND") };
           else if (!executionPolicy) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CONTEXT_UNAVAILABLE") };
+          else if (dependencies.discussionModel && conversation.settings.participantIds.length > dependencies.limits.maxRoleRuns) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CAPACITY_EXCEEDED") };
           else {
             const questionId = ids.next();
             conversation.questions.push({ id: questionId, text: command.text, status: "QUEUED", turnId: null, submittedAt: clock.now(), settings: copy(conversation.settings), participants: copy(participants), executionPolicy: copy(executionPolicy) });
@@ -97,17 +102,33 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
           }
         } else if (command.type === "ResumeQueue") {
           const conversation = state.conversations.find((item) => item.id === command.conversationId);
-          const waiting = state.turns.some((turn) => turn.id === conversation?.activeTurnId && turn.roleRuns.some((role) => role.status === "WAITING_USER"));
+          const waiting = state.turns.some((turn) => turn.id === conversation?.activeTurnId && (turn.status === "WAITING_USER" || turn.roleRuns.some((role) => role.status === "WAITING_USER")));
           if (!conversation || waiting || conversation.queueStatus !== "PAUSED") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!conversation ? "NOT_FOUND" : waiting ? "QUEUE_BLOCKED" : "INVALID_TRANSITION") };
           else {
             conversation.queueStatus = "RUNNING";
             emit(state, clock, { type: "QueueResumed", conversationId: conversation.id });
             receipt = { ok: true, commandId: command.commandId, conversationId: conversation.id, lastEventSeq: state.lastEventSeq };
           }
+        } else if (command.type === "RegenerateDiscussion") {
+          const turn = state.turns.find((item) => item.id === command.turnId);
+          if (!turn?.discussion || !dependencies.discussionModel || turn.status !== "WAITING_USER") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(turn ? "INVALID_TRANSITION" : "NOT_FOUND") };
+          else if (state.turns.filter((item) => item.status === "RUNNING").length >= dependencies.limits.maxActiveTurns) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CAPACITY_EXCEEDED") };
+          else {
+            const conversation = state.conversations.find((item) => item.id === turn.conversationId)!;
+            transition("turn", turn, "RUNNING");
+            transition("question", conversation.questions.find((item) => item.id === turn.questionId)!, "RUNNING");
+            turn.discussion.status = turn.discussion.plan ? "RETRIEVING" : "PLANNING";
+            turn.discussion.errorCode = null;
+            for (const role of turn.roleRuns) if (role.status === "WAITING_USER") {
+              transition("role", role, "PENDING"); role.textSoFar = ""; role.revision++; role.errorCode = null;
+            }
+            emit(state, clock, { type: "TurnStarted", conversationId: turn.conversationId, questionId: turn.questionId, turnId: turn.id });
+            receipt = { ok: true, commandId: command.commandId, turnId: turn.id, lastEventSeq: state.lastEventSeq };
+          }
         } else if (command.type === "RegenerateRole") {
           const turn = state.turns.find((item) => item.roleRuns.some((role) => role.id === command.roleRunId));
           const role = turn?.roleRuns.find((item) => item.id === command.roleRunId);
-          if (!turn || !role || (turn.status !== "WAITING_USER" && turn.status !== "RUNNING") || role.status !== "WAITING_USER") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!turn || !role ? "NOT_FOUND" : "INVALID_TRANSITION") };
+          if (!turn || !role || turn.discussion || (turn.status !== "WAITING_USER" && turn.status !== "RUNNING") || role.status !== "WAITING_USER") receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure(!turn || !role ? "NOT_FOUND" : "INVALID_TRANSITION") };
           else if (turn.status === "WAITING_USER" && state.turns.filter((item) => item.status === "RUNNING").length >= dependencies.limits.maxActiveTurns) receipt = { ok: false, commandId: command.commandId, lastEventSeq: state.lastEventSeq, error: failure("CAPACITY_EXCEEDED") };
           else {
             transition("role", role, "PENDING");

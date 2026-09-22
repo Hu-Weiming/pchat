@@ -2,7 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 import {
   AnswerSchema, CommandReceiptSchema, ComparisonProjectionSchema, ContextSnapshotSchema, ConversationSettingsSchema,
   EvidenceSchema, ExternalAttemptSchema, HarnessEventSchema, ModelExecutionPolicySchema, ModelInputSnapshotSchema, QuestionStatusSchema,
-  RoleStatusSchema, TurnContextSnapshotSchema, TurnStatusSchema,
+  RoleStatusSchema, TurnContextSnapshotSchema, TurnStatusSchema, ThoughtStagePackageSchema, DiscussionStateSchema,
 } from "@pchat/contracts";
 import type { RuntimeState } from "@pchat/harness";
 
@@ -36,12 +36,13 @@ export function readState(database: DatabaseSync): RuntimeState {
     if (!conversation) throw new Error("Orphan question");
     conversation.questions.push({ id: string(row.id), text: string(row.text), status: QuestionStatusSchema.parse(row.status),
       turnId: nullableString(row.turn_id), submittedAt: number(row.submitted_at),
-      settings: ConversationSettingsSchema.parse(json(row.settings_json)), participants: TurnContextSnapshotSchema.shape.participants.parse(json(row.participants_json)),
+      settings: ConversationSettingsSchema.parse(json(row.settings_json)), participants: ThoughtStagePackageSchema.array().max(30).parse(json(row.participants_json)),
       ...(row.execution_policy_json === null ? {} : { executionPolicy: ModelExecutionPolicySchema.parse(json(row.execution_policy_json)) }) });
   }
   for (const row of database.prepare("SELECT * FROM turns ORDER BY ordinal").all()) {
     state.turns.push({ id: string(row.id), conversationId: string(row.conversation_id), questionId: string(row.question_id),
       status: TurnStatusSchema.parse(row.status), context: TurnContextSnapshotSchema.parse(json(row.context_json)), roleRuns: [],
+      ...(row.discussion_json === null ? {} : { discussion: DiscussionStateSchema.parse(json(row.discussion_json)) }),
       comparison: row.comparison_json === null ? null : ComparisonProjectionSchema.parse(json(row.comparison_json)) });
   }
   const turns = new Map(state.turns.map((turn) => [turn.id, turn]));
@@ -91,7 +92,7 @@ function rowsFor(state: RuntimeState): TableRows[] {
   meta.rows.push([1, state.epoch, Number(state.suspended), state.lastEventSeq]);
   const conversations = table("conversations", ["id", "ordinal", "title", "settings_json", "queue_status", "active_turn_id"], ["id"]);
   const questions = table("questions", ["id", "conversation_id", "ordinal", "text", "status", "turn_id", "submitted_at", "settings_json", "participants_json", "execution_policy_json"], ["id"]);
-  const turns = table("turns", ["id", "conversation_id", "question_id", "ordinal", "conversation_ordinal", "status", "context_json", "comparison_json"], ["id"]);
+  const turns = table("turns", ["id", "conversation_id", "question_id", "ordinal", "conversation_ordinal", "status", "context_json", "comparison_json", "discussion_json"], ["id"]);
   const roles = table("role_runs", ["id", "turn_id", "ordinal", "status", "text_so_far", "revision", "answer_json", "error_code"], ["id"]);
   const roleContexts = table("role_contexts", ["role_run_id", "context_json"], ["role_run_id"]);
   const attempts = table("external_attempts", ["id", "role_run_id", "ordinal", "kind", "status", "previous_attempt_id", "reserved_cost_units", "draft"], ["id"]);
@@ -111,7 +112,7 @@ function rowsFor(state: RuntimeState): TableRows[] {
   state.turns.forEach((turn, ordinal) => {
     const conversationOrdinal = turnOrder.get(turn.id);
     if (conversationOrdinal === undefined) throw new Error("Turn missing from conversation");
-    turns.rows.push([turn.id, turn.conversationId, turn.questionId, ordinal, conversationOrdinal, turn.status, JSON.stringify(turn.context), turn.comparison === null ? null : JSON.stringify(turn.comparison)]);
+    turns.rows.push([turn.id, turn.conversationId, turn.questionId, ordinal, conversationOrdinal, turn.status, JSON.stringify(turn.context), turn.comparison === null ? null : JSON.stringify(turn.comparison), turn.discussion ? JSON.stringify(turn.discussion) : null]);
     turn.roleRuns.forEach((role, roleOrdinal) => {
       roles.rows.push([role.id, turn.id, roleOrdinal, role.status, role.textSoFar, role.revision,
         role.answer === null ? null : JSON.stringify(role.answer), role.errorCode]);

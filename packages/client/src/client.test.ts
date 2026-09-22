@@ -38,9 +38,9 @@ describe("PchatClient through the same Harness interface", () => {
 
   it.each([
     { protocolVersion: 99, requestId: "request-1", result: { ok: true, lastEventSeq: 0, data: [] } },
-    { protocolVersion: 2, requestId: "wrong-request", result: { ok: true, lastEventSeq: 0, data: [] } },
-    { protocolVersion: 2, requestId: "request-1", result: { ok: true, lastEventSeq: 0, data: { id: "wrong projection" } } },
-    { protocolVersion: 2, requestId: "request-1", result: { ok: true, lastEventSeq: -1, data: [] } },
+    { protocolVersion: 3, requestId: "wrong-request", result: { ok: true, lastEventSeq: 0, data: [] } },
+    { protocolVersion: 3, requestId: "request-1", result: { ok: true, lastEventSeq: 0, data: { id: "wrong projection" } } },
+    { protocolVersion: 3, requestId: "request-1", result: { ok: true, lastEventSeq: -1, data: [] } },
   ])("rejects a response with a mismatched protocol, correlation or projection", async (response) => {
     const client = createClient({ ids: { next: () => "request-1" }, transport: { async request() { return response; }, async *events() {} } });
     await expect(client.query({ type: "ListConversations" })).rejects.toMatchObject({ code: "PROTOCOL_ERROR" });

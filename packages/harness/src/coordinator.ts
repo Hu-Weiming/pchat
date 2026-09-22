@@ -7,6 +7,7 @@ import { CancellationToken } from "./cancellation";
 import { insufficientEvidenceAnswer, validAnswer, validEvidence } from "./evidence-policy";
 import { pauseQueue, settleTurn } from "./settlement";
 import { assembleContext, ContextFailure } from "./context";
+import { DiscussionExecutor } from "./discussion";
 
 class ExecutionFailure extends Error {
   constructor(readonly outcome: "REJECTED" | "OUTCOME_UNKNOWN" | "INVALID_PROVIDER_RESULT" | "BUDGET_EXCEEDED") { super(outcome) }
@@ -15,7 +16,7 @@ class ExecutionFailure extends Error {
 export class TurnCoordinator {
   private scheduled = false;
   private dirty = false;
-  private readonly running = new Map<string, { turnId: string; token: CancellationToken }>();
+  private readonly running = new Map<string, { turnId: string; token: CancellationToken; slots: number }>();
   private externalCalls = 0;
   private readonly externalWaiters: { token: CancellationToken; resolve: (granted: boolean) => void; unsubscribe: () => void }[] = [];
   private readonly drafts = new Map<string, { attemptId: string; text: string }>();
@@ -40,14 +41,17 @@ export class TurnCoordinator {
       try {
         while (this.dirty) {
           this.dirty = false;
-          let claimed: { turn: TurnRecord; role: RoleRunRecord } | null;
+          let claimed: { turn: TurnRecord; role: RoleRunRecord | null } | null;
           while ((claimed = await this.claim())) {
             const { turn, role } = claimed;
             const token = new CancellationToken();
-            this.running.set(role.id, { turnId: turn.id, token });
-            void this.execute(turn, role, token).catch(() => { this.faulted = true; this.cancelAll() }).finally(() => {
-              this.running.delete(role.id);
-              this.drafts.delete(role.id);
+            const executionId = role?.id ?? turn.id;
+            this.running.set(executionId, { turnId: turn.id, token, slots: this.slots(turn) });
+            const execution = role ? this.execute(turn, role, token) : new DiscussionExecutor(this.deps, this.epoch, (operation) => this.external(token, operation), this.drafts, (state, current) => this.checkpoint(state, current)).execute(turn.id, token);
+            void execution.catch(() => { this.faulted = true; this.cancelAll() }).finally(() => {
+              this.running.delete(executionId);
+              this.drafts.delete(executionId);
+              if (!role) for (const item of turn.roleRuns) this.drafts.delete(item.id);
               this.wake();
             });
           }
@@ -94,20 +98,32 @@ export class TurnCoordinator {
   checkpoint(state: RuntimeState, turn: TurnRecord): void {
     for (const role of turn.roleRuns) {
       const draft = this.drafts.get(role.id);
-      const attempt = role.attempts.at(-1);
+      const attempt = turn.discussion?.attempts.at(-1) ?? role.attempts.at(-1);
       if (!draft || !attempt || attempt.id !== draft.attemptId || attempt.status !== "IN_FLIGHT" || role.textSoFar === draft.text) continue;
-      role.textSoFar = draft.text; role.revision++; attempt.draft = draft.text;
+      role.textSoFar = draft.text; role.revision++;
+      if (turn.discussion) {
+        const shared = turn.discussion.attempts.at(-1)!;
+        shared.drafts ??= [];
+        const prior = shared.drafts.find((item) => item.roleId === role.context.participant.id);
+        if (prior) prior.text = draft.text; else shared.drafts.push({ roleId: role.context.participant.id, text: draft.text });
+      } else role.attempts.at(-1)!.draft = draft.text;
       emit(state, this.deps.clock, { type: "RoleCheckpoint", ...this.eventIds(turn, role) });
     }
   }
 
-  private claim(): Promise<{ turn: TurnRecord; role: RoleRunRecord } | null> {
+  private slots(turn: TurnRecord): number {
+    return turn.discussion ? turn.context.settings.participantIds.length || Math.min(turn.discussion.planningInput.maxParticipants ?? 3, turn.discussion.planningInput.catalog.length) : 1;
+  }
+
+  private claim(): Promise<{ turn: TurnRecord; role: RoleRunRecord | null } | null> {
     return this.deps.store.transaction((state) => {
       if (this.faulted || this.retired || state.epoch !== this.epoch || state.suspended) return null;
       // Role execution and external requests have independent global limits.
       // Keep a running role's slot until cancellation has actually drained.
-      if (this.running.size >= this.deps.limits.maxRoleRuns) return null;
+      const available = this.deps.limits.maxRoleRuns - [...this.running.values()].reduce((sum, item) => sum + item.slots, 0);
+      if (available <= 0) return null;
       const claimRole = (turn: TurnRecord) => {
+        if (turn.discussion) return this.running.has(turn.id) || this.slots(turn) > available ? null : { turn, role: null };
         const role = turn.roleRuns.find((item) => item.status === "PENDING" && !this.running.has(item.id));
         if (!role) return null;
         // Legacy snapshots have no historical budget audit. An explicit new
@@ -145,6 +161,14 @@ export class TurnCoordinator {
         })),
         comparison: null,
       };
+      if (this.deps.discussionModel && question.executionPolicy) {
+        turn.context.participants = question.settings.participantIds.length ? copy(question.participants) : [];
+        turn.roleRuns = [];
+        turn.discussion = { status: "PLANNING", planningInput: {
+          question: copy(turn.context.question), settings: copy(question.settings), catalog: copy(question.participants), executionPolicy: copy(question.executionPolicy),
+          maxParticipants: Math.min(3, this.deps.limits.maxRoleRuns),
+        }, plan: null, attempts: [], commentary: null, summary: null, errorCode: null };
+      }
       transition("question", question, "RUNNING");
       question.turnId = turnId;
       conversation.activeTurnId = turnId;
@@ -170,7 +194,7 @@ export class TurnCoordinator {
     const attempt = await this.deps.store.transaction((state) => {
       const current = this.active(state, turnId, roleId);
       if (!current) return null;
-      const reserved = state.turns.flatMap((turn) => turn.roleRuns).flatMap((role) => role.attempts)
+      const reserved = state.turns.flatMap((turn) => [...turn.roleRuns.flatMap((role) => role.attempts), ...(turn.discussion?.attempts ?? [])])
         .filter((attempt) => attempt.status !== "CANCELLED")
         .reduce((sum, attempt) => sum + attempt.reservedCostUnits, 0);
       if (reserved > this.deps.limits.maxCostUnits - this.deps.attemptCostUnits[kind]) throw new ExecutionFailure("BUDGET_EXCEEDED");

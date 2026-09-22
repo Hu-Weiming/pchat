@@ -2,6 +2,7 @@ import type {
   Answer, CommandReceipt, ContextSnapshot, ConversationSettings, Evidence, ExternalAttempt,
   HarnessEvent, KnowledgeMode, QuestionStatus, RoleRunProjection, ThoughtStagePackage, TurnProjection,
   ModelExecutionPolicy, ModelInputContent, ModelInputSnapshot,
+  PlanningInput, DiscussionInput, DiscussionPlan, DiscussionAnswer,
 } from "@pchat/contracts";
 
 export type { Answer, ContextSnapshot, Evidence, ExternalAttempt, ThoughtStagePackage, ModelExecutionPolicy, ModelInputContent, ModelInputSnapshot };
@@ -33,6 +34,13 @@ export interface GenerationRequest {
 export interface TokenCounter { readonly version: string; count(input: ModelInputContent, policy: ModelExecutionPolicy): number }
 export type ModelChunk = { type: "delta"; text: string } | { type: "complete"; answer: Answer } | { type: "failure"; code: "REJECTED" | "OUTCOME_UNKNOWN" };
 export interface ModelPort { generate(request: GenerationRequest, cancellation: Cancellation): AsyncIterable<ModelChunk> }
+export interface DiscussionModelPort {
+  /** Upper bound for the provider's rendered final request, including prompts.
+   * Audit-only source metadata must not consume the model's context budget. */
+  countInput?(input: DiscussionInput): number;
+  plan(request: { attemptId: string; input: PlanningInput }, cancellation: Cancellation): Promise<{ ok: true; plan: DiscussionPlan } | ProviderFailure>;
+  discuss(request: { attemptId: string; input: DiscussionInput; onDraft?: (draft: { roleId: string; text: string }) => Promise<void> }, cancellation: Cancellation): Promise<{ ok: true; answer: DiscussionAnswer } | ProviderFailure>;
+}
 export interface Clock { now(): number }
 export interface IdGenerator { next(): string }
 
@@ -86,6 +94,7 @@ export interface RuntimeStore {
 export interface HarnessDependencies {
   store: RuntimeStore;
   model: ModelPort;
+  discussionModel?: DiscussionModelPort;
   rag: RAGPort;
   clock: Clock;
   ids: IdGenerator;

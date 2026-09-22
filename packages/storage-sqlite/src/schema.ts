@@ -25,7 +25,7 @@ CREATE TABLE questions (
 CREATE TABLE turns (
   id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id),
   question_id TEXT NOT NULL UNIQUE REFERENCES questions(id), ordinal INTEGER NOT NULL UNIQUE,
-  conversation_ordinal INTEGER NOT NULL, status TEXT NOT NULL, context_json TEXT NOT NULL, comparison_json TEXT,
+  conversation_ordinal INTEGER NOT NULL, status TEXT NOT NULL, context_json TEXT NOT NULL, comparison_json TEXT, discussion_json TEXT,
   UNIQUE(conversation_id, conversation_ordinal)
 ) STRICT;
 CREATE TABLE role_runs (

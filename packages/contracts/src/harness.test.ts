@@ -35,12 +35,12 @@ describe("Harness command trust boundary", () => {
     expect(HarnessCommandSchema.safeParse({ type: "RegenerateRole", commandId: "g", turnId: "t" }).success).toBe(false);
   });
 
-  it("accepts one to three unique participant IDs and rejects ambiguous or legacy selection", () => {
+  it("accepts automatic selection or one to three unique IDs and rejects ambiguous or legacy selection", () => {
     const command = { type: "ChangeParticipants", commandId: "change", conversationId: "conversation" };
-    for (const participantIds of [["one"], ["one", "two"], ["one", "two", "three"]]) {
+    for (const participantIds of [[], ["one"], ["one", "two"], ["one", "two", "three"]]) {
       expect(HarnessCommandSchema.parse({ ...command, participantIds })).toEqual({ ...command, participantIds });
     }
-    for (const participantIds of [[], ["one", "one"], ["one", "two", "three", "four"]]) {
+    for (const participantIds of [["one", "one"], ["one", "two", "three", "four"]]) {
       expect(HarnessCommandSchema.safeParse({ ...command, participantIds }).success).toBe(false);
     }
     expect(HarnessCommandSchema.safeParse({ ...command, participantId: "one" }).success).toBe(false);

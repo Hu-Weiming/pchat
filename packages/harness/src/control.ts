@@ -4,6 +4,13 @@ import { emit } from "./journal";
 import { captureComparison } from "./settlement";
 
 export function stopTurn(state: RuntimeState, turn: TurnRecord, clock: Clock): void {
+  if (turn.discussion) {
+    for (const attempt of turn.discussion.attempts) {
+      if (attempt.status === "PREPARED") transition("attempt", attempt, "CANCELLED");
+      else if (attempt.status === "IN_FLIGHT") transition("attempt", attempt, "OUTCOME_UNKNOWN");
+    }
+    turn.discussion.status = "STOPPED";
+  }
   for (const role of turn.roleRuns) {
     if (role.status === "COMPLETED" || role.status === "FAILED" || role.status === "STOPPED") continue;
     for (const attempt of role.attempts) {
@@ -28,6 +35,13 @@ export function stopTurn(state: RuntimeState, turn: TurnRecord, clock: Clock): v
 export function interruptActiveTurns(state: RuntimeState, clock: Clock): void {
   for (const turn of state.turns) {
     if (turn.status !== "RUNNING") continue;
+    if (turn.discussion) {
+      for (const attempt of turn.discussion.attempts) {
+        if (attempt.status === "PREPARED") transition("attempt", attempt, "CANCELLED");
+        else if (attempt.status === "IN_FLIGHT") transition("attempt", attempt, "OUTCOME_UNKNOWN");
+      }
+      turn.discussion.status = "WAITING_USER";
+    }
     for (const role of turn.roleRuns) {
       if (role.status !== "PENDING" && role.status !== "RETRIEVING" && role.status !== "GENERATING") continue;
       for (const attempt of role.attempts) {

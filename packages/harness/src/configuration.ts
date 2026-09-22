@@ -29,6 +29,7 @@ export function validateConfiguration(dependencies: HarnessDependencies): Harnes
     // Copy data before any await; preserve behavior ports as injected instances.
     return {
       store: dependencies.store, model: dependencies.model, rag: dependencies.rag,
+      ...(dependencies.discussionModel ? { discussionModel: dependencies.discussionModel } : {}),
       clock: dependencies.clock, ids: dependencies.ids,
       roles: parsed.data, limits, attemptCostUnits, draftCheckpointChars,
       modelExecution: { policies, counter: dependencies.modelExecution.counter },

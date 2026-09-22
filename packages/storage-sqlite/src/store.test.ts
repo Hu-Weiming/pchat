@@ -7,6 +7,27 @@ import { createHarness } from "../../harness/src/index";
 import { createConversation, waitForTurn } from "../../harness/test-support";
 import { createTestDependencies, testEvidence } from "../../testing/src/index";
 
+it("persists an interrupted planning attempt and never retries it on reopen", async () => {
+  const configuration = options();
+  const store = await openSqliteStore(configuration);
+  const deps = createTestDependencies();
+  let calls = 0;
+  const discussionModel = {
+    plan: async (): Promise<never> => { calls++; return new Promise(() => {}); },
+    discuss: async (): Promise<never> => { throw new Error("Unexpected generation"); },
+  };
+  const harness = await createHarness({ ...deps, store, discussionModel });
+  const id = await createConversation(harness);
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "s", conversationId: id, text: "Freedom?" });
+  const inFlight = await waitForTurn(harness, id, (turn) => turn.discussion?.attempts[0]?.status === "IN_FLIGHT");
+  await harness.dispatch({ type: "SuspendRuntime", commandId: "suspend" });
+  store.close();
+  const reopened = await openSqliteStore(configuration);
+  const recovered = await createHarness({ ...deps, store: reopened, discussionModel });
+  expect(await recovered.query({ type: "GetTurn", turnId: inFlight.id })).toMatchObject({ ok: true, data: { status: "WAITING_USER", discussion: { status: "WAITING_USER", attempts: [{ kind: "PLAN", status: "OUTCOME_UNKNOWN" }] } } });
+  expect(calls).toBe(1);
+});
+
 const directories: string[] = [];
 const stores: SqliteRuntimeStore[] = [];
 async function openSqliteStore(configuration: Parameters<typeof openActual>[0]) {

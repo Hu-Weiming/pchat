@@ -28,6 +28,13 @@ async function beginGeneration(settings: ConversationSettings = testSettings, ev
 }
 
 describe("evidence policy through PchatHarness", () => {
+  it.each(["PRIMARY", "INFERENCE", "FICTION"] as const)("rejects research retrieval before generation in %s", async (knowledgeMode) => {
+    const run = await beginRetrieval({ ...testSettings, knowledgeMode });
+    run.retrieval.complete([{ ...testEvidence, kind: "RESEARCH" }]);
+    const turn = await waitForTurn(run.harness, run.conversationId, (item) => item.status !== "RUNNING");
+    expect(turn.roleRuns[0]).toMatchObject({ evidence: [], answer: null, errorCode: "INVALID_PROVIDER_RESULT" });
+    expect(run.deps.model.calls).toHaveLength(0);
+  });
   it("rejects another person's corpus before any evidence reaches the model", async () => {
     const run = await beginRetrieval();
     run.retrieval.complete([{ ...testEvidence, corpusId: "another-person" }]);
@@ -71,13 +78,6 @@ describe("evidence policy through PchatHarness", () => {
     expect(turn).toMatchObject({ status: "FAILED", roleRuns: [{ answer: null, errorCode: "INVALID_PROVIDER_RESULT" }] });
   });
 
-  it.each(["PARAPHRASE", "INFERENCE", "QUOTE"] as const)("does not present research-only material as a person's own %s", async (kind) => {
-    const run = await beginGeneration({ ...testSettings, knowledgeMode: "INFERENCE" }, [{ ...testEvidence, kind: "RESEARCH", translator: "A translator" }]);
-    run.generation.complete({ text: testEvidence.text, kind, evidenceIds: [testEvidence.id] });
-    const turn = await waitForTurn(run.harness, run.conversationId, (item) => item.status !== "RUNNING");
-    expect(turn).toMatchObject({ status: "FAILED", roleRuns: [{ answer: null, errorCode: "INVALID_PROVIDER_RESULT" }] });
-  });
-
   it.each(["locator", "workTitle", "edition", "translator"] as const)("refuses direct quotation without %s metadata", async (field) => {
     const run = await beginGeneration(testSettings, [{ ...testEvidence, translator: "Test translator", [field]: null }]);
     run.generation.complete({ text: testEvidence.text, kind: "QUOTE", evidenceIds: [testEvidence.id] });
@@ -104,7 +104,7 @@ describe("evidence policy through PchatHarness", () => {
     run.retrieval.complete([]);
     const turn = await waitForTurn(run.harness, run.conversationId, "COMPLETED");
     expect(turn.roleRuns[0]?.answer).toEqual({
-      text: "当前检索未找到足以支持回答的依据。你可以补充资料，或主动选择开放拟构模式。",
+      text: "当前检索依据不足以在所选知识模式下回答。你可以补充更具体的问题或原典资料。",
       kind: "INSUFFICIENT_EVIDENCE", evidenceIds: [],
     });
     expect(turn.context.settings.knowledgeMode).toBe(knowledgeMode);
