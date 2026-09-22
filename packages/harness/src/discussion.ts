@@ -132,7 +132,7 @@ export class DiscussionExecutor {
       })) return;
       let answer;
       let finalAttemptId: string | null = null;
-      if (input.participants.every((p) => p.evidence.length === 0)) {
+      if (input.settings.knowledgeMode !== "FICTION" && input.participants.every((p) => p.evidence.length === 0)) {
         answer = { answers: input.participants.map((p) => ({ roleId: p.participant.id, answer: insufficientEvidenceAnswer() })), commentary: { text: "", claimIndexes: [] }, summary: { text: "", roleIds: [] } };
       } else {
         const lengths = new Map<string, number>();
@@ -172,7 +172,7 @@ export class DiscussionExecutor {
       if (answer.answers.length !== input.participants.length || new Set(answer.answers.map((a) => a.roleId)).size !== answer.answers.length
         || answer.answers.some((item) => {
           const participant = input.participants.find((p) => p.participant.id === item.roleId);
-          return !participant || !validAnswer(input.settings.knowledgeMode, participant.evidence, item.answer) || (participant.evidence.length === 0 && item.answer.kind !== "INSUFFICIENT_EVIDENCE");
+          return !participant || !validAnswer(input.settings.knowledgeMode, participant.evidence, item.answer);
         }) || answer.commentary.claimIndexes.some((i) => i >= input.plan.userClaims.length)
         || (answer.commentary.text.length > 0 && answer.commentary.claimIndexes.length === 0)
         || answer.summary.roleIds.some((roleId) => !answer.answers.some((a) => a.roleId === roleId && a.answer.kind !== "INSUFFICIENT_EVIDENCE"))

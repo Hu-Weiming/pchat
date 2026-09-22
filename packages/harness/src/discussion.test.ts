@@ -121,6 +121,24 @@ test("stopping a pending paid plan fences its late result and records unknown de
   expect(deps.rag.calls).toHaveLength(0);
 });
 
+test("explicit fiction can generate a labelled creative answer after empty primary retrieval", async () => {
+  const deps = createTestDependencies();
+  deps.rag.holdNext();
+  const model = discussionModel();
+  model.discuss = vi.fn(async () => ({ ok: true as const, answer: {
+    answers: [{ roleId: testRole.id, answer: { text: "这是一段明确标注的创作拟构，不是人物原话。", kind: "FICTION" as const, evidenceIds: [] } }],
+    commentary: { text: "", claimIndexes: [] }, summary: { text: "", roleIds: [] },
+  } }));
+  const harness = await createHarness({ ...deps, discussionModel: model });
+  const id = await createConversation(harness, "create", { ...testSettings, knowledgeMode: "FICTION" });
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "s", conversationId: id, text: "请创作一段关于选择的寓言。" });
+  await until(() => deps.rag.calls.length === 1);
+  deps.rag.calls[0]!.complete([]);
+  const turn = await waitForTurn(harness, id, (item) => item.status !== "RUNNING");
+  expect(model.discuss).toHaveBeenCalledTimes(1);
+  expect(turn).toMatchObject({ status: "COMPLETED", roleRuns: [{ answer: { kind: "FICTION", evidenceIds: [] } }] });
+});
+
 test("stopping preserves a draft below the checkpoint threshold and fences late draft delivery", async () => {
   const deps = createTestDependencies({ draftCheckpointChars: 1000 });
   const model = discussionModel();
