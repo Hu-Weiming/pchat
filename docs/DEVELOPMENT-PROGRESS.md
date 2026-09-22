@@ -57,6 +57,12 @@
 - 364项全量测试、业务/测试类型、依赖与portable检查通过：`D:/Dev/logs/pchat/20260922-fiction-tests.log`、`20260922-fiction-check.log`。没有为此增加付费调用。此修复完成后独立提交，随后更新安装包。
 - 引文修复版已通过安装查询/订阅/退出清理：`D:/Dev/temp/pchat/installed-acceptance-7e341939-e232-475c-8df1-7a72b67108e5/result.json`；Runtime哈希与构建一致。GitHub已收到 `483d316`，后续模块仍受连接超时影响。
 
+### 2026-09-22 最新安装与待内容验收
+
+- 包含正文引文校验及FICTION修复的0.1.1已重建并安装到D:/Dev/apps/Pchat。安装页面查询、订阅、退出清理通过：`D:/Dev/temp/pchat/installed-acceptance-3fd505dd-b73a-461c-8d7a-874231c98e4c/result.json`。捆绑Runtime与本次构建哈希一致；原验收会话快照保持完整。没有修改环境配置。
+- 所有模块已逐次推送到GitHub main，截至 `e319ea8`；此前连接失败已恢复。后续继续执行每完成一个功能/模块立即独立Commit的规则。
+- [内容验收记录](./CONTENT-ACCEPTANCE-20260922.md)列出两份真实萨特回答的具体结论：主体来源可追溯，但个别概述/总结扩大原意；引文格式漏洞已修复，完整语义支持度仍未通过。总目标保持进行中。
+
 本文件是本次开发唯一的进度入口，每个开发步骤和提交前更新。产品规则仍以产品共识和运行不变量为准；实施细节见 [P1 工作流](./P1-WORKFLOW.md)。
 
 ## 已确认范围
