@@ -92,6 +92,27 @@ describe("evidence policy through PchatHarness", () => {
     expect(turn.roleRuns[0]?.answer).toMatchObject({ kind: "PARAPHRASE", text: "A clearly identified summary of the passage." });
   });
 
+  it.each(["PARAPHRASE", "INFERENCE"] as const)("refuses a source quotation hidden inside a %s without quotation metadata", async (kind) => {
+    const passage = "人面对既定处境仍然必须作出选择，而且应当为这种选择负责。";
+    const run = await beginGeneration({ ...testSettings, knowledgeMode: "INFERENCE" }, [{ ...testEvidence, text: passage, locator: null, edition: null, translator: null }]);
+    run.generation.complete({ text: `他明确说：“${passage}”[${testEvidence.id}]`, kind, evidenceIds: [testEvidence.id] });
+    const turn = await waitForTurn(run.harness, run.conversationId, (item) => item.status !== "RUNNING");
+    expect(turn).toMatchObject({ status: "FAILED", roleRuns: [{ answer: null, errorCode: "INVALID_PROVIDER_RESULT" }] });
+  });
+
+  it("keeps quoted concept labels in a paraphrase when edition metadata is absent", async () => {
+    const run = await beginGeneration(testSettings, [{ ...testEvidence, text: "这里讨论自由这一概念。", edition: null }]);
+    run.generation.complete({ text: "这段文字讨论“自由”。", kind: "PARAPHRASE", evidenceIds: [testEvidence.id] });
+    expect((await waitForTurn(run.harness, run.conversationId, "COMPLETED")).roleRuns[0]?.answer?.text).toBe("这段文字讨论“自由”。");
+  });
+
+  it("permits a supported embedded quotation with complete source metadata", async () => {
+    const passage = "人面对既定处境仍然必须作出选择，而且应当为这种选择负责。";
+    const run = await beginGeneration(testSettings, [{ ...testEvidence, text: passage, translator: "Test translator" }]);
+    run.generation.complete({ text: `他明确说：“${passage}”`, kind: "PARAPHRASE", evidenceIds: [testEvidence.id] });
+    expect((await waitForTurn(run.harness, run.conversationId, "COMPLETED")).roleRuns[0]?.answer?.kind).toBe("PARAPHRASE");
+  });
+
   it("permits a primary quotation with complete verifiable metadata", async () => {
     const run = await beginGeneration(testSettings, [{ ...testEvidence, translator: "Test translator" }]);
     run.generation.complete({ text: testEvidence.text, kind: "QUOTE", evidenceIds: [testEvidence.id] });
