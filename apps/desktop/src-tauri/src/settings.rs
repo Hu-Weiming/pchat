@@ -70,7 +70,7 @@ pub fn connection_options() -> Result<Value, String> {
     let connections = config["connections"].as_array().ok_or("连接配置无效")?;
     let models: Vec<Value> = config["models"].as_array().ok_or("模型配置无效")?.iter().filter(|model| connections.iter().any(|connection| connection["id"] == model["binding"]["connectionId"] && connection["revision"] == model["binding"]["configRevision"]))
         .map(|model| json!({"label":model["binding"]["modelId"],"binding":model["binding"],"ready":true})).collect();
-    let retrieval: Vec<Value> = connections.iter().filter(|connection| connection["provider"] == "qianfan").map(|connection| json!({"label":"百度千帆","connectionId":connection["id"],"readyCorpusIds":config["retrieval"].as_array().unwrap_or(&vec![]).iter().filter_map(|item| item["binding"]["corpusId"].as_str()).collect::<Vec<_>>()})).collect();
+    let retrieval: Vec<Value> = connections.iter().filter(|connection| connection["provider"] == "qianfan").map(|connection| json!({"label":"百度千帆","connectionId":connection["id"],"readyCorpusIds":config["retrieval"].as_array().unwrap_or(&vec![]).iter().chain(config["workflowRetrieval"].as_array().unwrap_or(&vec![]).iter()).filter_map(|item| item["binding"]["corpusId"].as_str()).collect::<Vec<_>>()})).collect();
     Ok(json!({"models":models,"retrieval":retrieval}))
 }
 

@@ -51,7 +51,7 @@ it("bounds the desktop event backlog and requires a new query instead of silentl
   const first = iterator.next();
   await until(() => test.requests.length === 1);
   for (let seq = 1; seq <= 1026; seq++) test.emit({ kind: "runtime.event", protocolVersion: 2, event: "harness", payload: {
-    subscriptionId: "id-1", envelope: { protocolVersion: 2, event: { seq, at: 0, type: "RuntimeSuspended" } },
+    subscriptionId: "id-1", envelope: { protocolVersion: 3, event: { seq, at: 0, type: "RuntimeSuspended" } },
   } });
   expect(await first).toMatchObject({ done: false });
   await expect(iterator.next()).rejects.toMatchObject({ code: "UNAVAILABLE" });

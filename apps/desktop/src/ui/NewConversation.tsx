@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import type { ConversationSettings, KnowledgeMode, ThoughtStagePackage } from "@pchat/contracts";
 import type { ModelOption, RagOption } from "./types";
 import { ParticipantPicker } from "./ParticipantPicker";
@@ -14,14 +14,9 @@ export function NewConversation({ roles, models, retrieval, disabled, onCreate, 
   const [title, setTitle] = useState("");
   const [modelKey, setModelKey] = useState("");
   const [ragId, setRagId] = useState("");
-  const initialized = useRef(false);
-  useEffect(() => {
-    const first = roles.find((role) => role.status === "CONFIRMED");
-    if (!initialized.current && first) { initialized.current = true; setSelected([first.id]); }
-  }, [roles]);
   const model = models.find((option) => JSON.stringify(option.binding) === modelKey) ?? models[0];
   const rag = retrieval.find((option) => option.connectionId === ragId) ?? retrieval[0];
-  const hasParticipants = selected.length > 0 && selected.every((id) => roles.some((role) => role.id === id && role.status === "CONFIRMED"));
+  const hasParticipants = roles.some((role) => role.status === "CONFIRMED") && selected.every((id) => roles.some((role) => role.id === id && role.status === "CONFIRMED"));
   const canCreate = hasParticipants && model && rag && !disabled;
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -35,6 +30,7 @@ export function NewConversation({ roles, models, retrieval, disabled, onCreate, 
     <form onSubmit={(event) => { void submit(event); }} className={styles.newForm}>
       <label className={styles.field}>会话名称<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={500} placeholder="给这段讨论起个名字（可选）" /></label>
       <ParticipantPicker roles={roles} selected={selected} disabled={disabled} onChange={setSelected} />
+      <p className={styles.muted}>{selected.length ? "按你选择的人物查阅资料。" : "未手动选人：根据每个问题，从已确认目录中选择1至3位人物。"}</p>
       <fieldset className={styles.modePicker}><legend>回答依据</legend><div className={styles.modeOptions}>
         {(["PRIMARY", "INFERENCE", "FICTION"] as const).map((value) => <label key={value} className={mode === value ? styles.modeSelected : ""}>
           <input type="radio" name="knowledge-mode" value={value} checked={mode === value} onChange={() => setMode(value)} />

@@ -16,20 +16,47 @@ fn endpoint(request: &OpenRequest) -> Result<&'static str, String> {
     if request.attempt_id.is_empty() || request.attempt_id.len() > 200 { return Err("REJECTED".into()); }
     let fields = request.body.as_object().ok_or("REJECTED")?;
     let (connection, endpoint, allowed): (&str, &str, &[&str]) = match request.operation.as_str() {
-        "deepseek.chat" => ("deepseek-personal", "https://api.deepseek.com/chat/completions", &["model","stream","response_format","max_tokens","temperature","top_p","messages"]),
+        "deepseek.chat" => ("deepseek-personal", "https://api.deepseek.com/chat/completions", &["model","stream","response_format","max_tokens","temperature","top_p","messages","thinking"]),
         "qianfan.search" => ("qianfan-personal", "https://qianfan.baidubce.com/v2/knowledgebases/search", &["query","knowledgebase_ids","metadata_filters","recall","rerank","top_k","score_threshold","enable_graph","enable_expansion"]),
         "qianfan.documents" => ("qianfan-personal", "https://qianfan.baidubce.com/v2/knowledgeBase?Action=DescribeDocuments", &["knowledgeBaseId","marker","maxKeys"]),
         "qianfan.chunks" => ("qianfan-personal", "https://qianfan.baidubce.com/v2/knowledgeBase?Action=DescribeChunks", &["knowledgeBaseId","documentId","marker","maxKeys"]),
         "qianfan.chunk" => ("qianfan-personal", "https://qianfan.baidubce.com/v2/knowledgeBase?Action=DescribeChunk", &["knowledgeBaseId","chunkId"]),
+        "qianfan.conversation" => ("qianfan-personal", "https://qianfan.baidubce.com/v2/app/conversation", &["app_id"]),
+        "qianfan.workflow" => ("qianfan-personal", "https://qianfan.baidubce.com/v2/app/conversation/runs", &["app_id","conversation_id","query","stream","parameters"]),
+        #[cfg(test)]
+        "qianfan.traceRun" => ("qianfan-personal", "https://qianfan.baidubce.com/v2/app/chatflow/async/run", &["app_id","parameters"]),
+        #[cfg(test)]
+        "qianfan.traceRetrieve" => ("qianfan-personal", "https://qianfan.baidubce.com/v2/app/chatflow/async/retrieve", &["execute_id"]),
         _ => return Err("REJECTED".into()),
     };
     if request.connection_id != connection || fields.keys().any(|key| !allowed.contains(&key.as_str())) || request.body.to_string().len() > 8_000_000 { return Err("REJECTED".into()); }
     if request.operation == "deepseek.chat" {
+        if request.body.get("thinking").is_some_and(|value| *value != json!({"type":"disabled"})) { return Err("REJECTED".into()); }
         let config = settings::configuration().map_err(|_| "REJECTED")?;
         if request.body["stream"] != true || request.body["response_format"] != json!({"type":"json_object"}) || !config["models"].as_array().ok_or("REJECTED")?.iter().any(|model| model["binding"]["connectionId"] == request.connection_id && model["binding"]["modelId"] == request.body["model"] && request.body["max_tokens"].as_u64().is_some_and(|tokens| tokens > 0 && tokens <= model["maxOutputTokens"].as_u64().unwrap_or(0))) { return Err("REJECTED".into()); }
         let messages = request.body["messages"].as_array().ok_or("REJECTED")?;
         if messages.len() != 2 || messages[0]["role"] != "system" || messages[1]["role"] != "user" || messages.iter().any(|message| message.as_object().is_none_or(|map| map.len() != 2) || !message["content"].is_string()) { return Err("REJECTED".into()); }
     }
+    if request.operation == "qianfan.conversation" || request.operation == "qianfan.workflow" {
+        let config = settings::configuration().map_err(|_| "REJECTED")?;
+        let bindings = config["workflowRetrieval"].as_array().ok_or("REJECTED")?;
+        if !bindings.iter().any(|binding| binding["binding"]["connectionId"] == request.connection_id && binding["appId"] == request.body["app_id"]) { return Err("REJECTED".into()); }
+        if request.operation == "qianfan.workflow" {
+            let parameters = request.body["parameters"].as_object().ok_or("REJECTED")?;
+            if parameters.len() != 2 || request.body["stream"] != false || request.body["conversation_id"].as_str().is_none_or(|s| s.is_empty() || s.len() > 200)
+                || request.body["query"].as_str().is_none_or(|s| s.trim().is_empty() || s.chars().count() > 32000)
+                || !bindings.iter().any(|binding| binding["appId"] == request.body["app_id"] && binding["group"] == request.body["parameters"]["group"] && binding["person"] == request.body["parameters"]["per"]) { return Err("REJECTED".into()); }
+        }
+    }
+    #[cfg(test)]
+    if request.operation == "qianfan.traceRun" {
+        let config = settings::configuration().map_err(|_| "REJECTED")?;
+        let parameters = request.body["parameters"].as_object().ok_or("REJECTED")?;
+        if parameters.len() != 3 || request.body["parameters"]["_sys_origin_query"].as_str().is_none_or(|s| s.trim().is_empty() || s.chars().count() > 32000)
+            || !config["workflowRetrieval"].as_array().ok_or("REJECTED")?.iter().any(|binding| binding["appId"] == request.body["app_id"] && binding["group"] == request.body["parameters"]["group"] && binding["person"] == request.body["parameters"]["per"]) { return Err("REJECTED".into()); }
+    }
+    #[cfg(test)]
+    if request.operation == "qianfan.traceRetrieve" && request.body["execute_id"].as_str().is_none_or(|s| s.is_empty() || s.len() > 200) { return Err("REJECTED".into()); }
     Ok(endpoint)
 }
 
@@ -81,5 +108,62 @@ impl Network {
             Ok(None) => { self.0.lock().unwrap().remove(id); Ok(json!({"done":true})) },
             Err(error) => { self.0.lock().unwrap().remove(id); Err(error.into()) },
         }
+    }
+}
+
+#[cfg(test)]
+mod live_tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "Explicit bounded live validation through the production credential/network boundary"]
+    async fn live_provider_bridge() {
+        use std::io::{BufRead, Write};
+        assert_eq!(std::env::var("PCHAT_LIVE_BRIDGE").as_deref(), Ok("1"));
+        let network = Network::default();
+        let mut opened = 0;
+        for line in std::io::stdin().lock().lines() {
+            let line = line.unwrap();
+            if line == "exit" { break; }
+            assert!(line.len() <= 1_000_000);
+            let request: Value = serde_json::from_str(&line).unwrap();
+            let method = request["method"].as_str().unwrap();
+            if method == "network.open" { opened += 1; assert!(opened <= 40, "Live probe request cap reached"); }
+            let result = network.handle(method, request["params"].clone()).await;
+            let response = match result {
+                Ok(value) => json!({"kind":"host.response","protocolVersion":2,"requestId":request["requestId"],"ok":true,"result":value}),
+                Err(error) => json!({"kind":"host.response","protocolVersion":2,"requestId":request["requestId"],"ok":false,"error":error}),
+            };
+            println!("PCHAT_HOST_RESPONSE:{}", response);
+            std::io::stdout().flush().unwrap();
+        }
+        network.cancel_all();
+    }
+
+    // Explicit invocation only. Exercises the production allowlist, DPAPI vault,
+    // HTTP transport and stream reader without exposing credentials to Node.
+    #[tokio::test]
+    #[ignore = "Calls the paid DeepSeek API using the locally configured credential"]
+    async fn live_deepseek_connection() {
+        let directory = std::env::var_os("PCHAT_LIVE_PROBE_DIRECTORY").expect("explicit live probe required");
+        let directory = std::path::PathBuf::from(directory);
+        assert!(directory.is_absolute());
+        let request: Value = serde_json::from_slice(&std::fs::read(directory.join("request.json")).unwrap()).unwrap();
+        assert_eq!(request["operation"], "deepseek.chat");
+        assert_eq!(request["body"]["thinking"], json!({"type":"disabled"}));
+        assert!(request["body"]["max_tokens"].as_u64().is_some_and(|tokens| tokens <= 512));
+        let network = Network::default();
+        let opened = network.handle("network.open", request).await.expect("Host connection failed");
+        assert_eq!(opened["status"], 200, "DeepSeek returned a non-success status");
+        let stream = json!({"streamId":opened["streamId"]});
+        let mut wire = Vec::<u8>::new();
+        loop {
+            let next = network.handle("network.read", stream.clone()).await.expect("Host stream failed");
+            if next["done"] == true { break; }
+            let bytes: Vec<u8> = serde_json::from_value(next["bytes"].clone()).unwrap();
+            wire.extend(bytes);
+            assert!(wire.len() < 1_000_000, "Live probe response too large");
+        }
+        std::fs::write(directory.join("response.sse"), wire).unwrap();
     }
 }

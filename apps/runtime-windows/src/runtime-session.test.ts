@@ -16,7 +16,7 @@ it("serves fragmented UTF-8 requests and commits suspension before acknowledging
   output.on("data", (chunk: Buffer) => { received += chunk.toString("utf8"); });
   const running = runRuntimeSession({ harness, input, output, nextId: () => deps.ids.next() });
   const command = Buffer.from(JSON.stringify({ protocolVersion: 2, requestId: "host-create", method: "harness.request", params: {
-    protocolVersion: 2, requestId: "client-create", type: "command", command: { type: "CreateConversation", commandId: "create", title: "自由的意义", settings: testSettings },
+    protocolVersion: 3, requestId: "client-create", type: "command", command: { type: "CreateConversation", commandId: "create", title: "自由的意义", settings: testSettings },
   } }) + "\n");
   for (let index = 0; index < command.length; index += 7) input.write(command.subarray(index, index + 7));
   await expect.poll(() => received).toContain('"requestId":"host-create"');
@@ -77,7 +77,7 @@ it("limits outstanding requests while allowing suspension to pass a delayed quer
   output.resume();
   const running = runRuntimeSession({ harness: delayed, input, output, nextId: () => deps.ids.next() });
   for (let index = 0; index < 65; index++) input.write(JSON.stringify({ protocolVersion: 2, requestId: `host-${index}`, method: "harness.request", params: {
-    protocolVersion: 2, requestId: `client-${index}`, type: "query", query: { type: "ListConversations" },
+    protocolVersion: 3, requestId: `client-${index}`, type: "query", query: { type: "ListConversations" },
   } }) + "\n");
   try {
     await expect.poll(() => deps.store.read((state) => state.suspended), { timeout: 200 }).toBe(true);

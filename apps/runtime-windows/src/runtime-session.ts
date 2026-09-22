@@ -79,7 +79,7 @@ export async function runRuntimeSession({ harness, input, output, nextId, host, 
   };
   output.on("error", failed);
   input.on("error", failed);
-  try { await emit({ kind: "runtime.ready", protocolVersion: WINDOWS_PROTOCOL_VERSION, runtimeVersion: "0.1.0", pid: process.pid }); }
+  try { await emit({ kind: "runtime.ready", protocolVersion: WINDOWS_PROTOCOL_VERSION, runtimeVersion: "0.1.1", pid: process.pid }); }
   catch { stop("IO_ERROR"); }
   if (!stopping) {
     input.on("end", ended);

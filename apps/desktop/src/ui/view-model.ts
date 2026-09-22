@@ -3,9 +3,9 @@ import type { ModelOption, RagOption } from "./types";
 export function connectionReadiness(settings: ConversationSettings, roles: readonly ThoughtStagePackage[], models: readonly ModelOption[], rag: readonly RagOption[]) {
   const model = models.find((option) => option.binding.connectionId === settings.model.connectionId && option.binding.modelId === settings.model.modelId && option.binding.configRevision === settings.model.configRevision);
   if (!model?.ready) return { ready: false, message: "请先配置本会话使用的模型连接。" };
-  const selected = settings.participantIds.map((id) => roles.find((role) => role.id === id && role.status === "CONFIRMED"));
+  const selected = settings.participantIds.length ? settings.participantIds.map((id) => roles.find((role) => role.id === id && role.status === "CONFIRMED")) : roles.filter((role) => role.status === "CONFIRMED");
   const retrieval = rag.find((option) => option.connectionId === settings.ragConnectionId);
-  if (selected.some((role) => !role || !retrieval?.readyCorpusIds.includes(role.corpusId))) {
+  if (!selected.length || selected.some((role) => !role || !retrieval?.readyCorpusIds.includes(role.corpusId))) {
     return { ready: false, message: "所选人物的资料尚未准备就绪，请检查知识库绑定。" };
   }
   return { ready: true, message: "" };
