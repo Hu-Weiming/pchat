@@ -100,6 +100,29 @@ describe("evidence policy through PchatHarness", () => {
     expect(turn).toMatchObject({ status: "FAILED", roleRuns: [{ answer: null, errorCode: "INVALID_PROVIDER_RESULT" }] });
   });
 
+  it("refuses a long source passage copied without quotation marks into a paraphrase", async () => {
+    const passage = "人面对既定处境仍然必须作出选择，而且应当为这种选择负责。";
+    const run = await beginGeneration(testSettings, [{ ...testEvidence, text: passage, locator: null, edition: null, translator: null }]);
+    run.generation.complete({ text: `原典指出，人面对既定处境仍然必须作出选择；而且应当为这种选择负责。[${testEvidence.id}]`, kind: "PARAPHRASE", evidenceIds: [testEvidence.id] });
+    const turn = await waitForTurn(run.harness, run.conversationId, (item) => item.status !== "RUNNING");
+    expect(turn).toMatchObject({ status: "FAILED", roleRuns: [{ answer: null, errorCode: "INVALID_PROVIDER_RESULT" }] });
+  });
+
+  it("keeps a brief shared phrase in an otherwise rewritten paraphrase", async () => {
+    const passage = "在某个具体处境中，选择不可避免，行为者要承担由此产生的责任。";
+    const run = await beginGeneration(testSettings, [{ ...testEvidence, text: passage, locator: null, edition: null, translator: null }]);
+    run.generation.complete({ text: "在某个具体处境中，选择不可避免；文本随后把这种选择与责任联系起来。", kind: "PARAPHRASE", evidenceIds: [testEvidence.id] });
+    expect((await waitForTurn(run.harness, run.conversationId, "COMPLETED")).roleRuns[0]?.answer?.kind).toBe("PARAPHRASE");
+  });
+
+  it("refuses a long unmarked English source passage without quotation metadata", async () => {
+    const passage = "A person must decide what to do in a particular situation and remains responsible for that decision even when they refuse to choose.";
+    const run = await beginGeneration(testSettings, [{ ...testEvidence, text: passage, locator: null, edition: null, translator: null }]);
+    run.generation.complete({ text: "The source says a person must decide what to do in a particular situation, and remains responsible for that decision even when they refuse to choose.", kind: "PARAPHRASE", evidenceIds: [testEvidence.id] });
+    const turn = await waitForTurn(run.harness, run.conversationId, (item) => item.status !== "RUNNING");
+    expect(turn).toMatchObject({ status: "FAILED", roleRuns: [{ answer: null, errorCode: "INVALID_PROVIDER_RESULT" }] });
+  });
+
   it("keeps quoted concept labels in a paraphrase when edition metadata is absent", async () => {
     const run = await beginGeneration(testSettings, [{ ...testEvidence, text: "这里讨论自由这一概念。", edition: null }]);
     run.generation.complete({ text: "这段文字讨论“自由”。", kind: "PARAPHRASE", evidenceIds: [testEvidence.id] });

@@ -21,7 +21,25 @@ export function validAnswer(mode: KnowledgeMode, evidence: readonly Evidence[], 
     const sources = cited.filter((source) => source.text.includes(text));
     if (sources.length > 0 && !sources.some(canQuote)) return false;
   }
+  if (cited.some((source) => !canQuote(source) && copiesLongPassage(answer.text, source.text))) return false;
   return answer.evidenceIds.length > 0 && answer.evidenceIds.every((id) => evidence.some((item) => item.id === id && item.kind === "PRIMARY"));
+}
+
+function copiesLongPassage(answer: string, source: string): boolean {
+  // A missing quote mark does not turn verbatim source text into a paraphrase.
+  // Ignore punctuation/spacing changes but require a substantial exact span.
+  const plain = (text: string) => text.replace(/[^\p{L}\p{N}]/gu, "");
+  const sourceText = plain(source);
+  const answerChars = Array.from(plain(answer));
+  for (const length of [24, 64]) {
+    if (answerChars.length < length || sourceText.length < length) continue;
+    for (let start = 0; start <= answerChars.length - length; start++) {
+      const fragment = answerChars.slice(start, start + length).join("");
+      if (length === 24 && (fragment.match(/\p{Script=Han}/gu)?.length ?? 0) < 16) continue;
+      if (sourceText.includes(fragment)) return true;
+    }
+  }
+  return false;
 }
 
 function canQuote(source: Evidence): boolean {
