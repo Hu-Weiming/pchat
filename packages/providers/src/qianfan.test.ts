@@ -42,6 +42,18 @@ class TestCancellation implements Cancellation {
 }
 
 describe("Qianfan RAGPort", () => {
+  test("uses only the reviewed speaker's passages from a confirmed interview document", async () => {
+    const interview = "**萨特：**选择时仍要承担责任。";
+    const digest = await hasher.sha256(interview);
+    const reviewed: QianfanConfiguration = { ...config, documents: [{ ...config.documents[0]!, sourceForm: "INTERVIEW", speakerLabel: "萨特",
+      chunks: [{ ...config.documents[0]!.chunks[0]!, expectedSha256: digest }] }] };
+    const own = { ...payload, chunks: [{ ...payload.chunks[0]!, content: [{ type: "text", text: interview }] }] };
+    expect(await fixture(own, reviewed).rag.retrieve(request, cancellation)).toMatchObject({ ok: true, evidence: [{ sourceForm: "INTERVIEW", text: interview }] });
+    const interviewer = "**采访者：**选择是否意味着责任？";
+    const other = { ...payload, chunks: [{ ...payload.chunks[0]!, content: [{ type: "text", text: interviewer }] }] };
+    const otherReviewed: QianfanConfiguration = { ...reviewed, documents: [{ ...reviewed.documents[0]!, chunks: [{ ...reviewed.documents[0]!.chunks[0]!, expectedSha256: await hasher.sha256(interviewer) }] }] };
+    expect(await fixture(other, otherReviewed).rag.retrieve(request, cancellation)).toEqual({ ok: true, evidence: [] });
+  });
   test.each([true, false])("verifies collected detail revisions without guessing search timestamp units (unchanged=%s)", async (unchanged) => {
     const collected: QianfanConfiguration = { ...config, documents: [{ ...config.documents[0]!, chunks: [{ ...config.documents[0]!.chunks[0]!, expectedUpdateTime: 1755578217, revisionSource: "DETAIL" }] }] };
     const rag = new QianfanRAG({ hasher, configurations: { resolve: () => collected }, network: { request: async (call) => ({ ok: true, status: 200, body: (async function* () {

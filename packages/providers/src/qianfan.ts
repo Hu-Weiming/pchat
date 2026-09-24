@@ -27,6 +27,8 @@ export interface QianfanDocumentManifest {
   workTitle: string | null;
   edition: string | null;
   translator: string | null;
+  sourceForm?: "INTERVIEW";
+  speakerLabel?: string;
   chunks: readonly QianfanChunkManifest[];
 }
 export interface QianfanConfiguration {
@@ -120,12 +122,18 @@ export class QianfanRAG implements RAGPort {
           const detail = await readCollectionObject(this.options.network, { operation: "qianfan.chunk", connectionId: binding.connectionId, attemptId: request.attemptId, body: { knowledgeBaseId: config.knowledgebaseId, chunkId: expected.chunkId } }, cancellation, scope, 8_000_000);
           if (detail.id !== expected.chunkId || detail.documentId !== document.documentId || detail.knowledgeBaseId !== config.knowledgebaseId || detail.enabled !== true || !["Indexed", "indexed"].includes(String(detail.status)) || detail.updateTime !== expected.expectedUpdateTime || detail.content !== text) return { ok: false, code: "REJECTED" };
         }
+        if (document.sourceForm === "INTERVIEW") {
+          const speakers = [...text.matchAll(/(?:^|\r?\n)\s*(?:\*\*)?([^\r\n：:]{1,30})\s*[：:](?:\*\*)?/gu)]
+            .map((match) => match[1]!.trim().normalize("NFKC"));
+          if (speakers.length === 0 || speakers.some((speaker) => speaker !== document.speakerLabel!.normalize("NFKC"))) continue;
+        }
         const id = await scope.wait(this.options.hasher.sha256(JSON.stringify([binding.connectionId, config.knowledgebaseId, document.documentId, chunk.chunk_id, document.sourceRevision, digest])));
         if (!validSha256(id)) return { ok: false, code: "REJECTED" };
         evidence.push(EvidenceSchema.parse({
           id: `qf-${id}`, corpusId: binding.corpusId, corpusRevision: binding.corpusRevision,
           sourceId: document.sourceId, sourceRevision: document.sourceRevision, text, contentHash: `sha256:${digest}`,
           kind: document.kind, workTitle: document.workTitle, edition: document.edition, translator: document.translator, locator: expected.locator,
+          ...(document.sourceForm ? { sourceForm: document.sourceForm } : {}),
         }));
       }
       return { ok: true, evidence };

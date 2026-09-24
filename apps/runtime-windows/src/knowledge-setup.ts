@@ -6,7 +6,9 @@ import { QianfanManifestCollector, snapshotQianfanConfiguration, type QianfanMan
 import { ThoughtStagePackageSchema } from "@pchat/contracts";
 
 const text = z.string().trim().min(1).max(200);
-const metadata = z.strictObject({ documentId: text, kind: z.enum(["PRIMARY", "RESEARCH"]), workTitle: z.string().max(500).nullable(), edition: z.string().max(500).nullable(), translator: z.string().max(500).nullable() });
+const metadata = z.strictObject({ documentId: text, kind: z.enum(["PRIMARY", "RESEARCH"]), workTitle: z.string().max(500).nullable(), edition: z.string().max(500).nullable(), translator: z.string().max(500).nullable(),
+  sourceForm: z.literal("INTERVIEW").optional(), speakerLabel: text.optional(),
+}).refine((document) => document.sourceForm === "INTERVIEW" ? document.kind === "PRIMARY" && !!document.speakerLabel : document.speakerLabel === undefined);
 const collectSchema = z.strictObject({ knowledgebaseId: text });
 const confirmSchema = z.strictObject({ collectionId: z.uuid(), label: text, documents: z.array(metadata).min(1).max(100) });
 export function createKnowledgeSetup(stateDirectory: string, network: SecureNetworkPort) {
@@ -47,7 +49,9 @@ export function createKnowledgeSetup(stateDirectory: string, network: SecureNetw
           documents: input.documents.map((document) => {
             const collected = draft.documents.find((entry) => entry.documentId === document.documentId);
             if (!collected || !collected.chunks.length) throw new Error();
-            return { ...document, sourceId: document.documentId, sourceRevision: revision, chunks: collected.chunks.map((chunk) => ({ chunkId: chunk.chunkId, expectedUpdateTime: chunk.revision.raw, expectedSha256: chunk.sha256, revisionSource: "DETAIL", locator: null })) };
+            return { documentId: document.documentId, kind: document.kind, workTitle: document.workTitle, edition: document.edition, translator: document.translator,
+              ...(document.sourceForm === "INTERVIEW" ? { sourceForm: "INTERVIEW" as const, speakerLabel: document.speakerLabel! } : {}),
+              sourceId: document.documentId, sourceRevision: revision, chunks: collected.chunks.map((chunk) => ({ chunkId: chunk.chunkId, expectedUpdateTime: chunk.revision.raw, expectedSha256: chunk.sha256, revisionSource: "DETAIL" as const, locator: null })) };
           }),
         });
         const oldRole = config.roles.find((role: { corpusId: string }) => role.corpusId === corpusId);

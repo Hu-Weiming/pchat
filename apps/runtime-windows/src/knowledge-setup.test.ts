@@ -22,10 +22,12 @@ it("collects a draft then enables a reviewed role through persisted runtime conf
     expect(draft).toMatchObject({ ok: true, result: { documents: [{ documentId: "doc", chunkCount: 1 }] } });
     if (!("result" in draft) || !("collectionId" in draft.result)) throw new Error("Missing draft");
     expect(JSON.parse(readFileSync(join(directory, "configuration.json"), "utf8")).roles).toEqual([]);
-    expect(await setup.handle({ protocolVersion: 2, requestId: "confirm", method: "configuration.confirm", params: { collectionId: draft.result.collectionId, label: "Reviewed thought stage", documents: [{ documentId: "doc", kind: "PRIMARY", workTitle: "Reviewed work", edition: null, translator: null }] } })).toMatchObject({ ok: true, result: { confirmed: true } });
+    expect(await setup.handle({ protocolVersion: 2, requestId: "missing-speaker", method: "configuration.confirm", params: { collectionId: draft.result.collectionId, label: "Reviewed thought stage", documents: [{ documentId: "doc", kind: "PRIMARY", workTitle: "Reviewed interview", edition: null, translator: null, sourceForm: "INTERVIEW" }] } })).toMatchObject({ ok: false });
+    expect(JSON.parse(readFileSync(join(directory, "configuration.json"), "utf8")).roles).toEqual([]);
+    expect(await setup.handle({ protocolVersion: 2, requestId: "confirm", method: "configuration.confirm", params: { collectionId: draft.result.collectionId, label: "Reviewed thought stage", documents: [{ documentId: "doc", kind: "PRIMARY", workTitle: "Reviewed interview", edition: null, translator: null, sourceForm: "INTERVIEW", speakerLabel: "萨特" }] } })).toMatchObject({ ok: true, result: { confirmed: true } });
     runtime = await openWindowsRuntime({ stateDirectory: directory, dependencies: configuredPorts(directory, network) });
     expect(await runtime.harness.query({ type: "ListRoles" })).toMatchObject({ ok: true, data: [{ label: "Reviewed thought stage", status: "CONFIRMED" }] });
-    expect(JSON.parse(readFileSync(join(directory, "configuration.json"), "utf8")).retrieval[0].documents[0].chunks[0]).toMatchObject({ revisionSource: "DETAIL", expectedUpdateTime: 100 });
+    expect(JSON.parse(readFileSync(join(directory, "configuration.json"), "utf8")).retrieval[0].documents[0]).toMatchObject({ sourceForm: "INTERVIEW", speakerLabel: "萨特", chunks: [{ revisionSource: "DETAIL", expectedUpdateTime: 100 }] });
   } finally {
     setup.close(); await runtime?.close();
     const target = resolve(directory), within = relative(resolve(parent), target);

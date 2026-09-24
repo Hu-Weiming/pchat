@@ -21,6 +21,7 @@ export function snapshotQianfanConfiguration(config: QianfanConfiguration): Qian
   for (const document of config.documents) {
     if (![document.documentId, document.sourceId, document.sourceRevision].every(id) || documents.has(document.documentId) ||
       (document.kind !== "PRIMARY" && document.kind !== "RESEARCH") || ![document.workTitle, document.edition, document.translator].every(optionalText) ||
+      (document.sourceForm === "INTERVIEW" ? document.kind !== "PRIMARY" || !id(document.speakerLabel) : document.sourceForm !== undefined || document.speakerLabel !== undefined) ||
       !Array.isArray(document.chunks) || document.chunks.length < 1) throw new Error("Invalid document manifest");
     documents.add(document.documentId);
     for (const chunk of document.chunks) {
