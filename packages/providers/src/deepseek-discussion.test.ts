@@ -16,7 +16,7 @@ test("uses one bounded structured planning request without exposing corpus ident
   expect(JSON.stringify(calls[0]?.body.messages)).not.toContain(testRole.corpusId);
 });
 
-test.each(["pchat-discussion-prompt-v1", DEEPSEEK_DISCUSSION_PROMPT_VERSION])("streams escaped drafts with frozen prompt %s and resolves citations", async (promptVersion) => {
+test.each(["pchat-discussion-prompt-v1", "pchat-discussion-prompt-v2", DEEPSEEK_DISCUSSION_PROMPT_VERSION])("streams escaped drafts with frozen prompt %s and resolves citations", async (promptVersion) => {
   const text = '自由中的"选择"与责任。\n特殊字符：\\和{括号}。[E1]';
   const answer = { answers: [{ roleId: testRole.id, answer: { text, kind: "PARAPHRASE", evidenceIds: ["E1"] } }], commentary: { text: "", claimIndexes: [] }, summary: { text: "", roleIds: [] } };
   const drafts: string[] = [];
@@ -40,5 +40,8 @@ test.each(["pchat-discussion-prompt-v1", DEEPSEEK_DISCUSSION_PROMPT_VERSION])("s
   expect(drafts.at(-1)).toBe(text.replace("E1", testEvidence.id));
   expect(JSON.stringify(calls[0]!.body.messages)).not.toContain(testEvidence.id);
   expect(model.countInput(input)).toBe(JSON.stringify(calls[0]!.body.messages).length * 3 + 1024);
-  expect(JSON.stringify(calls[0]!.body.messages).includes("即使原典检索为空，也可以返回明确标为FICTION的创作")).toBe(promptVersion === DEEPSEEK_DISCUSSION_PROMPT_VERSION);
+  const sent = JSON.stringify(calls[0]!.body.messages);
+  expect(sent.includes("即使原典检索为空，也可以返回明确标为FICTION的创作")).toBe(promptVersion !== "pchat-discussion-prompt-v1");
+  expect(sent.includes("保留原文的主语、否定、条件、范围和语气强度")).toBe(promptVersion === DEEPSEEK_DISCUSSION_PROMPT_VERSION);
+  expect(sent.includes("总结中的每个判断都必须能在上述有效回答中找到同等强度的表述")).toBe(promptVersion === DEEPSEEK_DISCUSSION_PROMPT_VERSION);
 });
