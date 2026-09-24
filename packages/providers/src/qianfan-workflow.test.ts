@@ -52,6 +52,17 @@ test("omits signed editorial notes while retaining an exact original paragraph",
   }
 });
 
+test("keeps only an author paragraph when an unheaded editor note shares a short retrieval segment", async () => {
+  const content = "编者按：萨特认为选择可以逃避责任。\n\n人在具体处境中不能避免选择，也要承担自己的责任。";
+  const { rag } = fixture([{ ...chunk, content }]);
+  const result = await rag.retrieve(request, token);
+  expect(result).toMatchObject({ ok: true, evidence: [{ text: "人在具体处境中不能避免选择，也要承担自己的责任。" }] });
+  if (result.ok) {
+    const excerpt = result.evidence[0]!.sourceExcerpt!;
+    expect(content.slice(excerpt.start, excerpt.end)).toBe(result.evidence[0]!.text);
+  }
+});
+
 test("does not discard a relevant chapter just because two other chapters share its document", async () => {
   const { rag } = fixture([
     { ...chunk, segment_id: "interview-1", score: 0.9, content: "关于社会和生产关系的访谈。" },

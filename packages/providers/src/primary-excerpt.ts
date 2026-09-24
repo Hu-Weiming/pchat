@@ -8,11 +8,12 @@ export function primaryExcerpt(text: string, query: string, maximum = 2400): { t
     || /出版社数字业务|DigitalLab是|术语的译名|译名做.{0,8}说明|译者按/.test(normalized)
     || /更新时间\s*\d{4}[-年]/.test(text) || !/[\p{L}\p{N}]{3}/u.test(text)) return null;
   const editorialNote = /[—－-]{1,2}\s*(?:原编者注|编者注|校注|译注|译者注)/;
-  if (text.length <= maximum && !editorialNote.test(text)) return { text, start: 0, end: text.length };
+  const editorialLead = /(?:^|\r?\n)\s*(?:>\s*)?(?:\*\*)?(?:原编者注|编者按|编者注|译者按|译者注|译注|校注)\s*[:：]/;
+  if (text.length <= maximum && !editorialNote.test(text) && !editorialLead.test(text)) return { text, start: 0, end: text.length };
   const terms = new Set((query.toLowerCase().match(/[a-z]{3,}|[\u3400-\u9fff]{2,}/g) ?? []).flatMap((term) => /^[a-z]/.test(term) ? [term] : Array.from({ length: term.length - 1 }, (_, index) => term.slice(index, index + 2))));
   const paragraphs = [...text.matchAll(/\S[\s\S]*?(?=\r?\n\s*\r?\n|$)/g)].flatMap((match) => {
     const value = match[0];
-    if (/^(?:#|「|<|!\[|\[)/.test(value) || editorialNote.test(value) || value.length < 8 || value.length > maximum) return [];
+    if (/^(?:#|「|<|!\[|\[)/.test(value) || editorialNote.test(value) || editorialLead.test(value) || value.length < 8 || value.length > maximum) return [];
     return [{ start: match.index, end: match.index + value.length, score: [...terms].filter((term) => value.toLowerCase().includes(term)).length }];
   });
   paragraphs.sort((a, b) => b.score - a.score || a.start - b.start);
