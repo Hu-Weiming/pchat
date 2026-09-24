@@ -80,6 +80,26 @@ test("removes a retrieved filename wrapper while preserving the original prose r
   }
 });
 
+test("marks a named interview document only when the excerpt belongs to the configured speaker", async () => {
+  const { rag } = fixture([
+    { ...chunk, segment_id: "speaker", document_name: "萨特访谈.md", content: "**萨特：**人在处境中选择，并为自己的选择负责。" },
+    { ...chunk, segment_id: "interviewer", document_name: "萨特访谈.md", content: "**采访者：**自由是否意味着没有责任？" },
+  ]);
+  const result = await rag.retrieve(request, token);
+  expect(result).toMatchObject({ ok: true, evidence: [{ sourceForm: "INTERVIEW", text: "**萨特：**人在处境中选择，并为自己的选择负责。" }] });
+  if (result.ok) expect(result.evidence).toHaveLength(1);
+});
+
+test("withholds speaker-labeled anthology excerpts whose interview source is not confirmed", async () => {
+  const { rag } = fixture([{ ...chunk, document_name: "思想文集.md", content: "**萨特：**人在处境中选择，并为自己的选择负责。" }]);
+  expect(await rag.retrieve(request, token)).toEqual({ ok: true, evidence: [] });
+});
+
+test("keeps a prose topic label that is not an interview speaker", async () => {
+  const { rag } = fixture([{ ...chunk, content: "自由：人在具体处境中选择，也要为自己的行为负责。" }]);
+  expect(await rag.retrieve(request, token)).toMatchObject({ ok: true, evidence: [{ text: "自由：人在具体处境中选择，也要为自己的行为负责。" }] });
+});
+
 test("does not discard a relevant chapter just because two other chapters share its document", async () => {
   const { rag } = fixture([
     { ...chunk, segment_id: "interview-1", score: 0.9, content: "关于社会和生产关系的访谈。" },

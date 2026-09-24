@@ -70,6 +70,14 @@ export class QianfanWorkflowRAG implements RAGPort {
         if (evidence.length >= config.maxPassages) break;
         const excerpt = primaryExcerpt(chunk.text, request.query, Math.min(2400, remaining));
         if (!excerpt) continue;
+        const interview = /访谈|interview/i.test(chunk.title);
+        const speakers = [...excerpt.text.matchAll(/(?:^|\r?\n)\s*(?:\*\*)?([^\r\n：:]{1,30})\s*[：:](?:\*\*)?/gu)]
+          .map((match) => match[1]!.trim().normalize("NFKC"));
+        const namedSpeech = speakers[0] === config.person.normalize("NFKC")
+          || /^\s*\*\*[^\r\n：:]{1,30}[：:]\*\*/u.test(excerpt.text);
+        // A speaker label in a mixed anthology does not establish interview
+        // provenance; an interview document must identify this role's speech.
+        if (interview ? speakers.length === 0 || speakers.some((speaker) => speaker !== config.person.normalize("NFKC")) : namedSpeech) continue;
         const sourceDigest = await scope.wait(this.options.hasher.sha256(chunk.text));
         const digest = await scope.wait(this.options.hasher.sha256(excerpt.text));
         const excerptKey = JSON.stringify([chunk.document, digest]);
@@ -79,6 +87,7 @@ export class QianfanWorkflowRAG implements RAGPort {
         evidence.push(EvidenceSchema.parse({ id: `qfw-${id}`, corpusId: binding.corpusId, corpusRevision: binding.corpusRevision,
           sourceId: chunk.document, sourceRevision: `sha256:${sourceDigest}`, text: excerpt.text, contentHash: `sha256:${digest}`,
           kind: "PRIMARY", workTitle: chunk.title, edition: null, translator: null, locator: null,
+          ...(interview ? { sourceForm: "INTERVIEW" } : {}),
           sourceExcerpt: { datasetId: config.datasetId, segmentId: chunk.segment, originalChunkId: chunk.original, originalChunkOffset: chunk.offset, sourceContentHash: `sha256:${sourceDigest}`, start: excerpt.start, end: excerpt.end } }));
         remaining -= excerpt.text.length;
         excerpts.add(excerptKey);

@@ -80,6 +80,7 @@ export const EvidenceSchema = z.strictObject({
   id: Id, corpusId: Id, corpusRevision: Id, sourceId: Id, sourceRevision: Id,
   text: z.string().min(1), contentHash: Id, locator: z.string().nullable(), workTitle: z.string().nullable(),
   edition: z.string().nullable(), translator: z.string().nullable(), kind: z.enum(["PRIMARY", "RESEARCH"]),
+  sourceForm: z.literal("INTERVIEW").optional(),
   sourceExcerpt: z.strictObject({ datasetId: Id, segmentId: Id, originalChunkId: Id.nullable(), originalChunkOffset: z.number().nullable(), sourceContentHash: Id, start: z.number().int().min(0), end: z.number().int().min(1) }).optional(),
 });
 export const AnswerSchema = z.strictObject({
