@@ -7,6 +7,10 @@
 - 包含直连千帆访谈确认入口的0.1.1已重新发布构建并安装到`D:/Dev/apps/Pchat`。安装包SHA256为`CB03DD0BBD09BFCF83265E28BB96E1E7FA94E55072B4780B41B434881E14D180`，安装版Runtime与新构建SHA256均为`D8D0032E69E11D710D8FC28E524EF55BDDE8D6C05AE41F520B6D319D678E16B9`。
 - 安装探针验证ListRoles、ListConversations、事件订阅和退出后Runtime清理，私有证据`D:/Dev/temp/pchat/installed-acceptance-25b58cbb-6e4c-427a-be40-8c57f9118500/result.json`。未使用computer use或操作应用窗口；真实应用保持关闭供用户自行打开。没有修改环境或工具配置。
 
+### 2026-09-24 十三人依据抽样清点
+
+- [只读抽样清点](./CONTENT-SNAPSHOT-AUDIT-20260924.md)复用已保存的13人各一条检索结果：共36条依据，结构化版本、译者和稳定定位均缺失。其余文件名包装、OCR目录和混合文集发言已作前瞻过滤；旧快照保留。工作流适配器目前没有经人工确认的版本与定位输入，完整内容验收依赖后续可信资料准备与接入，不把接口成功当作通过。
+
 ### 2026-09-24 最新安装包验收
 
 - 含概述保真、无引号逐字摘录、编者/OCR目录隔离及访谈来源标记的0.1.1已在`D:/Dev`完成发布构建、NSIS打包与静默覆盖安装，安装目录`D:/Dev/apps/Pchat`。安装包SHA256：`BCC5D20DCDBE5552F89209F97C70D4CBE99EA4DCDA14F4EE4A0C482B252572CB`；安装版Runtime与本次构建SHA256均为`A700E09AA9A8C2C3AEFEDB0D99D441F50356A45ECF338B3191C9572B1FDF57BF`。
