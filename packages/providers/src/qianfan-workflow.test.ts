@@ -63,6 +63,23 @@ test("keeps only an author paragraph when an unheaded editor note shares a short
   }
 });
 
+test("does not use a short OCR segment that mixes a table of contents into author prose", async () => {
+  const content = "「非此即彼.pdf」\n\n作者讨论自由。\n\n18\n目录\n间奏曲\n宏业、知识、名望\n\n人也要为自己的选择负责。";
+  const { rag } = fixture([{ ...chunk, content }]);
+  expect(await rag.retrieve(request, token)).toEqual({ ok: true, evidence: [] });
+});
+
+test("removes a retrieved filename wrapper while preserving the original prose range", async () => {
+  const content = "「非此即彼.pdf」\n\n人在处境中选择，并为自己的自由承担责任。";
+  const { rag } = fixture([{ ...chunk, content }]);
+  const result = await rag.retrieve(request, token);
+  expect(result).toMatchObject({ ok: true, evidence: [{ text: "人在处境中选择，并为自己的自由承担责任。" }] });
+  if (result.ok) {
+    const excerpt = result.evidence[0]!.sourceExcerpt!;
+    expect(content.slice(excerpt.start, excerpt.end)).toBe(result.evidence[0]!.text);
+  }
+});
+
 test("does not discard a relevant chapter just because two other chapters share its document", async () => {
   const { rag } = fixture([
     { ...chunk, segment_id: "interview-1", score: 0.9, content: "关于社会和生产关系的访谈。" },
