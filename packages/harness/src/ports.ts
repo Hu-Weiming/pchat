@@ -35,6 +35,8 @@ export interface TokenCounter { readonly version: string; count(input: ModelInpu
 export type ModelChunk = { type: "delta"; text: string } | { type: "complete"; answer: Answer } | { type: "failure"; code: "REJECTED" | "OUTCOME_UNKNOWN" };
 export interface ModelPort { generate(request: GenerationRequest, cancellation: Cancellation): AsyncIterable<ModelChunk> }
 export interface DiscussionModelPort {
+  // 选路目录也占用上下文预算，不能仅检查最终回答的输入。
+  countPlanningInput?(input: PlanningInput): number;
   /** Upper bound for the provider's rendered final request, including prompts.
    * Audit-only source metadata must not consume the model's context budget. */
   countInput?(input: DiscussionInput): number;

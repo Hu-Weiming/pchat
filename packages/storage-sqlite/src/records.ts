@@ -36,7 +36,7 @@ export function readState(database: DatabaseSync): RuntimeState {
     if (!conversation) throw new Error("Orphan question");
     conversation.questions.push({ id: string(row.id), text: string(row.text), status: QuestionStatusSchema.parse(row.status),
       turnId: nullableString(row.turn_id), submittedAt: number(row.submitted_at),
-      settings: ConversationSettingsSchema.parse(json(row.settings_json)), participants: ThoughtStagePackageSchema.array().max(30).parse(json(row.participants_json)),
+      settings: ConversationSettingsSchema.parse(json(row.settings_json)), participants: ThoughtStagePackageSchema.array().max(100).parse(json(row.participants_json)),
       ...(row.execution_policy_json === null ? {} : { executionPolicy: ModelExecutionPolicySchema.parse(json(row.execution_policy_json)) }) });
   }
   for (const row of database.prepare("SELECT * FROM turns ORDER BY ordinal").all()) {

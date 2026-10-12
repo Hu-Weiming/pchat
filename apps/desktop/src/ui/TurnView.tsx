@@ -15,6 +15,10 @@ export function TurnView({ turn, number, disabled, onCommand, onEvidence, onConf
   return <section className={styles.turn} aria-label={`第 ${number} 轮讨论`}>
     <div className={styles.questionHeader}><span className={styles.eyebrow}>问题 {String(number).padStart(2, "0")}</span><span className={styles.modeBadge}>{modeLabels[turn.context.settings.knowledgeMode]}</span></div>
     <h2 className={styles.questionText}>{turn.context.question.text}</h2>
+    {/* 无匹配回应属于主持人说明，不能展示为某个人物的有据回答。 */}
+    {turn.discussion?.status === "COMPLETED" && turn.discussion.plan?.unmatchedResponse && <section className={styles.roleAnswer}>
+      <h3>继续细分问题</h3><p className={styles.answerText}>{turn.discussion.plan.unmatchedResponse}</p>
+    </section>}
     {turn.discussion?.plan && <p className={styles.muted}>本轮讨论：{turn.discussion.plan.philosophicalQuestion}</p>}
     {turn.discussion?.status === "PLANNING" && <p className={styles.emptyAnswer}>正在整理问题，并从已确认目录中选择人物…</p>}
     {turn.discussion?.status === "RETRIEVING" && <p className={styles.muted}>正在逐位查阅原典，资料齐备后统一组织回答。</p>}

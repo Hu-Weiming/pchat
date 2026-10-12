@@ -5,7 +5,34 @@ import { DatabaseSync } from "node:sqlite";
 import { openSqliteStore as openActual, type SqliteRuntimeStore } from "./index";
 import { createHarness } from "../../harness/src/index";
 import { createConversation, waitForTurn } from "../../harness/test-support";
-import { createTestDependencies, testEvidence } from "../../testing/src/index";
+import { createTestDependencies, testEvidence, testRole, testSettings } from "../../testing/src/index";
+
+it("reopens an unmatched response with its frozen hundred-role descriptions and no extra calls", async () => {
+  const configuration = options();
+  const store = await openSqliteStore(configuration);
+  const deps = createTestDependencies();
+  const roles = Array.from({ length: 100 }, (_, index) => ({ ...testRole, id: `role-${index}`, retrievalDescription: "抽样原文讨论无聊与消遣。" }));
+  let plans = 0;
+  const discussionModel = {
+    plan: async () => { plans++; return { ok: true as const, plan: { philosophicalQuestion: "无聊", userClaims: [], targets: [], unmatchedResponse: "本次没有找到合适方向。想讨论哪一种无聊？" } }; },
+    discuss: async (): Promise<never> => { throw new Error("Unexpected generation"); },
+  };
+  const harness = await createHarness({ ...deps, roles, store, discussionModel });
+  const id = await createConversation(harness, "create", { ...testSettings, participantIds: [] });
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "s", conversationId: id, text: "无聊，不想玩手机" });
+  const completed = await waitForTurn(harness, id, "COMPLETED");
+  await harness.dispatch({ type: "SuspendRuntime", commandId: "suspend" });
+  store.close();
+  const reopened = await openSqliteStore(configuration);
+  const recovered = await createHarness({ ...deps, roles: roles.map((role) => ({ ...role, retrievalDescription: "更新后的说明" })), store: reopened, discussionModel });
+  const restored = await recovered.query({ type: "GetTurn", turnId: completed.id });
+  expect(restored).toMatchObject({ ok: true, data: { status: "COMPLETED", roleRuns: [], discussion: { plan: { unmatchedResponse: "本次没有找到合适方向。想讨论哪一种无聊？" } } } });
+  if (!restored.ok) throw new Error("Missing turn");
+  expect(restored.data.discussion?.planningInput.catalog).toHaveLength(100);
+  expect(restored.data.discussion?.planningInput.catalog[0]?.retrievalDescription).toBe("抽样原文讨论无聊与消遣。");
+  expect(plans).toBe(1);
+  expect(deps.rag.calls).toHaveLength(0);
+});
 
 it("persists an interrupted planning attempt and never retries it on reopen", async () => {
   const configuration = options();

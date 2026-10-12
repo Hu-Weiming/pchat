@@ -38,6 +38,39 @@ function discussionModel(): DiscussionModelPort {
   };
 }
 
+test("returns the planner's unmatched response without retrieval or final generation and continues FIFO", async () => {
+  const deps = createTestDependencies();
+  const model = discussionModel();
+  model.plan = vi.fn(async ({ input }) => ({ ok: true as const, plan: {
+    philosophicalQuestion: input.question.text, userClaims: [], targets: [],
+    unmatchedResponse: "目前没有找到合适的资料方向。你更想讨论无聊的感受，还是怎样安排这段时间？",
+  } }));
+  const harness = await createHarness({ ...deps, discussionModel: model });
+  const id = await createConversation(harness, "create", { ...testSettings, participantIds: [] });
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "a", conversationId: id, text: "无聊，不想玩手机" });
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "b", conversationId: id, text: "换个话题" });
+  const turn = await waitForTurn(harness, id, "COMPLETED");
+  await until(() => vi.mocked(model.plan).mock.calls.length === 2);
+  expect(turn).toMatchObject({ status: "COMPLETED", roleRuns: [], comparison: null,
+    discussion: { status: "COMPLETED", plan: { targets: [], unmatchedResponse: expect.stringContaining("资料方向") }, attempts: [{ kind: "PLAN", status: "SUCCEEDED" }] } });
+  expect(deps.rag.calls).toHaveLength(0);
+  expect(model.discuss).not.toHaveBeenCalled();
+  expect(await harness.query({ type: "GetConversation", conversationId: id })).toMatchObject({ ok: true, data: { queueStatus: "RUNNING" } });
+});
+
+test("rejects an oversized planning catalog before charging for an external request", async () => {
+  const deps = createTestDependencies();
+  const model = discussionModel();
+  model.countPlanningInput = () => deps.modelExecution.policies[0]!.windowTokens;
+  const harness = await createHarness({ ...deps, discussionModel: model });
+  const id = await createConversation(harness);
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "s", conversationId: id, text: "无聊" });
+  const turn = await waitForTurn(harness, id, "FAILED");
+  expect(turn.discussion).toMatchObject({ errorCode: "CONTEXT_BUDGET_EXCEEDED", attempts: [] });
+  expect(model.plan).not.toHaveBeenCalled();
+  expect(deps.rag.calls).toHaveLength(0);
+});
+
 test("automatic selection uses the confirmed catalog and retrieves only the selected person", async () => {
   const deps = createTestDependencies();
   const model = discussionModel();
