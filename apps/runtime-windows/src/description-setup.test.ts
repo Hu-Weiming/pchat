@@ -1,6 +1,6 @@
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import type { SecureNetworkPort, SecureNetworkRequest } from "@pchat/providers";
 import { testRole, testSettings } from "../../../packages/testing/src/index";
 import { createKnowledgeSetup } from "./knowledge-setup";
@@ -31,7 +31,7 @@ function fixture(options: { empty?: boolean; unknown?: boolean; onModel?: (path:
     return { ok: true, status: 200, body: (async function* () { yield JSON.stringify(body); })() };
   } };
   const setup = createKnowledgeSetup(directory, network);
-  return { directory, path, config, calls, network, setup, request: { protocolVersion: 2, requestId: "description", method: "configuration.confirm", params: { action: "GENERATE_DESCRIPTION", roleId: testRole.id, expectedRevision: testRole.revision } },
+  return { directory, path, config, calls, network, setup, request: { protocolVersion: 2, requestId: "description", method: "configuration.collect", params: { action: "GENERATE_DESCRIPTION", roleId: testRole.id, expectedRevision: testRole.revision } },
     close() { setup.close(); const target = resolve(directory), within = relative(resolve(parent), target); if (!within || within.startsWith("..") || isAbsolute(within)) throw new Error("Unsafe cleanup"); rmSync(target, { recursive: true, force: true }); },
   };
 }
@@ -88,4 +88,48 @@ test("preserves other settings changed while the description request is in fligh
     expect(await f.setup.handle(f.request)).toMatchObject({ ok: true });
     expect(configuredPorts(f.directory, f.network).limits.maxCostUnits).toBe(42);
   } finally { f.close(); }
+});
+
+test("rejects zero or exhausted preparation allowance before sending any paid request", async () => {
+  const f = fixture();
+  try {
+    writeFileSync(f.path, JSON.stringify({ ...f.config, maxCostUnits: 0 }));
+    expect(await f.setup.handle(f.request)).toMatchObject({ ok: false });
+    expect(f.calls).toHaveLength(0);
+    writeFileSync(f.path, JSON.stringify({ ...f.config, maxCostUnits: 3 }));
+    expect(await f.setup.handle(f.request)).toMatchObject({ ok: true });
+    const role = configuredPorts(f.directory, f.network).roles[0]!;
+    expect(await f.setup.handle({ ...f.request, params: { ...f.request.params, expectedRevision: role.revision } })).toMatchObject({ ok: false });
+    expect(f.calls).toHaveLength(3);
+  } finally { f.close(); }
+});
+
+test("saves a manual correction without provider calls and refuses an outdated revision", async () => {
+  const f = fixture();
+  try {
+    const input = { action: "SAVE_DESCRIPTION", roleId: testRole.id, expectedRevision: testRole.revision, description: "抽样原文讨论无聊与消遣，不涉及手机使用建议。" };
+    expect(await f.setup.handle({ ...f.request, method: "configuration.confirm", params: input })).toMatchObject({ ok: true, result: { role: { retrievalDescription: expect.stringContaining(input.description) } } });
+    expect(f.calls).toHaveLength(0);
+    expect(await f.setup.handle({ ...f.request, method: "configuration.confirm", params: input })).toMatchObject({ ok: false });
+    expect(JSON.parse(readFileSync(f.path, "utf8")).workflowRetrieval).toEqual(f.config.workflowRetrieval);
+  } finally { f.close(); }
+});
+
+test("cancels a stalled preparation before the host timeout and fences late activation", async () => {
+  vi.useFakeTimers();
+  const f = fixture();
+  let started = false;
+  let release!: (value: Awaited<ReturnType<SecureNetworkPort["request"]>>) => void;
+  f.network.request = async () => { started = true; return new Promise((resolve) => { release = resolve; }); };
+  try {
+    const pending = f.setup.handle(f.request);
+    for (let i = 0; i < 100 && !started; i++) await Promise.resolve();
+    expect(started).toBe(true);
+    // 同一个 Runtime 不并发准备第二份说明，避免重复计费与配置覆盖。
+    expect(await f.setup.handle(f.request)).toMatchObject({ ok: false });
+    await vi.advanceTimersByTimeAsync(120000);
+    expect(await pending).toMatchObject({ ok: false });
+    release({ ok: false, code: "OUTCOME_UNKNOWN" });
+    expect(JSON.parse(readFileSync(f.path, "utf8"))).toEqual(f.config);
+  } finally { f.close(); vi.useRealTimers(); }
 });

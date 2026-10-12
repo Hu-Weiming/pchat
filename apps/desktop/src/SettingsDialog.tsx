@@ -14,8 +14,9 @@ export function SettingsDialog({ client, onClose, onSaved }: { client: PchatClie
   const [outputTokens, setOutputTokens] = useState(4096);
   const [busy, setBusy] = useState(false);
   const [descriptionBusy, setDescriptionBusy] = useState(false);
+  const [knowledgeBusy, setKnowledgeBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const blocked = busy || descriptionBusy;
+  const blocked = busy || descriptionBusy || knowledgeBusy;
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
   async function save(event: FormEvent) {
     event.preventDefault(); if (blocked) return; setBusy(true); setMessage("");
@@ -39,9 +40,7 @@ export function SettingsDialog({ client, onClose, onSaved }: { client: PchatClie
       </fieldset>
     </form>
     {/* 生成说明会重启 Runtime；等待期间暂停其他配置操作，避免重启相互干扰。 */}
-    <fieldset disabled={blocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-      {provider === "qianfan" && <KnowledgeSetup onSaved={onSaved} />}
-    </fieldset>
-    <RoleDescriptions client={client} disabled={busy} onBusyChange={setDescriptionBusy} onSaved={onSaved} />
+    {provider === "qianfan" && <KnowledgeSetup disabled={busy || descriptionBusy} onBusyChange={setKnowledgeBusy} onSaved={onSaved} />}
+    <RoleDescriptions client={client} disabled={busy || knowledgeBusy} onBusyChange={setDescriptionBusy} onSaved={onSaved} />
   </dialog>;
 }

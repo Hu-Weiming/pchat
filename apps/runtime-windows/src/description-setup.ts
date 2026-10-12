@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { EvidenceSchema, ModelBindingSchema, ThoughtStagePackageSchema } from "@pchat/contracts";
@@ -9,11 +9,27 @@ import { configuredPorts } from "./configuration";
 
 const inputSchema = z.strictObject({ action: z.literal("GENERATE_DESCRIPTION"), roleId: z.string().min(1).max(200), expectedRevision: z.string().min(1).max(200) });
 const storedSchema = z.object({
+  maxCostUnits: z.number().min(0),
   connections: z.array(z.object({ id: z.string(), provider: z.string(), revision: z.string() })),
   models: z.array(z.object({ binding: ModelBindingSchema, windowTokens: z.number(), maxOutputTokens: z.number() })),
   roles: z.array(ThoughtStagePackageSchema), retrieval: z.array(z.unknown()), workflowRetrieval: z.array(z.unknown()).optional(),
 }).passthrough();
 const bindingSchema = z.object({ binding: z.object({ connectionId: z.string(), corpusId: z.string(), corpusRevision: z.string(), retrievalConfigRevision: z.string() }) });
+const descriptionPrefix = "根据检索原文抽样（不代表全库覆盖）：";
+const save = (target: string, value: unknown) => { const temporary = `${target}.${randomUUID()}.tmp`; writeFileSync(temporary, JSON.stringify(value)); renameSync(temporary, target); };
+
+/** 手工纠正导航说明不产生外部调用，仍然保留抽样边界与资料绑定。 */
+export function saveRoleDescription(stateDirectory: string, raw: unknown) {
+  const input = z.strictObject({ action: z.literal("SAVE_DESCRIPTION"), roleId: z.string().min(1).max(200), expectedRevision: z.string().min(1).max(200), description: z.string().trim().min(1).max(750) }).parse(raw);
+  const path = join(stateDirectory, "configuration.json");
+  const config = storedSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+  const index = config.roles.findIndex((role) => role.id === input.roleId && role.revision === input.expectedRevision && role.status === "CONFIRMED");
+  if (index < 0) throw new Error("Role changed during description editing");
+  const role = ThoughtStagePackageSchema.parse({ ...config.roles[index], revision: randomUUID(), retrievalDescription: descriptionPrefix + input.description });
+  config.roles[index] = role;
+  save(path, config);
+  return { confirmed: true as const, role };
+}
 
 /** 按已有角色绑定取得真实原文；自动启用的说明始终标明抽样边界。 */
 export async function generateRoleDescription(stateDirectory: string, network: SecureNetworkPort, raw: unknown, cancellation: Cancellation) {
@@ -29,9 +45,16 @@ export async function generateRoleDescription(stateDirectory: string, network: S
   if (!role || !retrieval || !policy || cancellation.cancelled) throw new Error("Description preparation unavailable");
   const directory = join(stateDirectory, "description-jobs");
   mkdirSync(directory, { recursive: true });
+  // 资料准备采用独立累计额度；未知结果也保留费用，不能靠重试绕过上限。
+  const reservedCostUnits = ports.attemptCostUnits.RAG + ports.attemptCostUnits.MODEL;
+  const previousCost = readdirSync(directory).filter((name) => /^[a-f0-9-]{36}\.json$/i.test(name)).reduce((total, name) => {
+    const previous = JSON.parse(readFileSync(join(directory, name), "utf8"));
+    const cost = z.number().finite().min(0).parse(previous.reservedCostUnits ?? reservedCostUnits);
+    return total + cost;
+  }, 0);
+  if (previousCost + reservedCostUnits > Math.min(20, config.maxCostUnits)) throw new Error("Description preparation budget exceeded");
   const path = join(directory, `${randomUUID()}.json`);
-  const job = { roleId: role.id, roleRevision: role.revision, corpusRevision: role.corpusRevision, status: "IN_FLIGHT", stage: "RAG", evidence: [] as z.infer<typeof EvidenceSchema>[], description: "" };
-  const save = (target: string, value: unknown) => { const temporary = `${target}.${randomUUID()}.tmp`; writeFileSync(temporary, JSON.stringify(value)); renameSync(temporary, target); };
+  const job = { roleId: role.id, roleRevision: role.revision, corpusRevision: role.corpusRevision, reservedCostUnits, status: "IN_FLIGHT", stage: "RAG", evidence: [] as z.infer<typeof EvidenceSchema>[], description: "" };
   save(path, job);
   try {
     const result = await ports.rag.retrieve({ attemptId: randomUUID(), roleRunId: role.id, connectionId: retrieval.binding.connectionId,
@@ -60,7 +83,7 @@ export async function generateRoleDescription(stateDirectory: string, network: S
     const index = current.roles.findIndex((item) => item.id === role.id && item.revision === role.revision
       && item.corpusId === role.corpusId && item.corpusRevision === role.corpusRevision && item.retrievalConfigRevision === role.retrievalConfigRevision);
     if (index < 0) throw new Error("Role changed during description generation");
-    const description = `根据检索原文抽样（不代表全库覆盖）：${generated.description}`;
+    const description = descriptionPrefix + generated.description;
     const updated = ThoughtStagePackageSchema.parse({ ...current.roles[index], revision: randomUUID(), retrievalDescription: description });
     current.roles[index] = updated;
     job.description = description;
