@@ -144,6 +144,8 @@ export const DiscussionPlanSchema = z.strictObject({
 export const PlanningInputSchema = z.strictObject({
   question: ContextSnapshotSchema.shape.question, settings: ConversationSettingsSchema,
   maxParticipants: z.number().int().min(1).max(3).optional(),
+  // 仅保留有限的已完成讨论，帮助解释“前者”等后续指代；不是资料依据。
+  history: ContextSnapshotSchema.shape.history.max(4).optional(),
   catalog: z.array(ThoughtStagePackageSchema).min(1).max(100), executionPolicy: ModelExecutionPolicySchema,
 });
 export const DiscussionInputSchema = z.strictObject({

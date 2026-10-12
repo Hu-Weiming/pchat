@@ -71,6 +71,27 @@ test("rejects an oversized planning catalog before charging for an external requ
   expect(deps.rag.calls).toHaveLength(0);
 });
 
+test("keeps the unmatched clarification available when the user answers with a short reference", async () => {
+  const deps = createTestDependencies();
+  const model = discussionModel();
+  let plans = 0;
+  model.plan = vi.fn(async ({ input }) => {
+    if (++plans === 1) return { ok: true as const, plan: { philosophicalQuestion: "无聊", userClaims: [], targets: [], unmatchedResponse: "你想讨论无聊的感受，还是如何安排时间？" } };
+    expect(input.history).toEqual([{ turnId: expect.any(String), question: "无聊，不想玩手机", answer: "你想讨论无聊的感受，还是如何安排时间？" }]);
+    return { ok: true as const, plan: { philosophicalQuestion: "如何安排闲暇时间", userClaims: [], targets: [{ roleId: testRole.id, searchQuery: "闲暇与消遣" }] } };
+  });
+  const harness = await createHarness({ ...deps, discussionModel: model });
+  const id = await createConversation(harness, "create", { ...testSettings, participantIds: [] });
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "first", conversationId: id, text: "无聊，不想玩手机" });
+  await waitForTurn(harness, id, "COMPLETED");
+  await harness.dispatch({ type: "SubmitQuestion", commandId: "follow-up", conversationId: id, text: "后者" });
+  await waitForTurn(harness, id, "COMPLETED", 1);
+  const conversation = await harness.query({ type: "GetConversation", conversationId: id });
+  if (!conversation.ok) throw new Error("Missing conversation");
+  const result = await harness.query({ type: "GetTurn", turnId: conversation.data.turnIds[1]! });
+  expect(result).toMatchObject({ ok: true, data: { context: { question: { text: "后者" } }, discussion: { plan: { philosophicalQuestion: "如何安排闲暇时间" } } } });
+});
+
 test("automatic selection uses the confirmed catalog and retrieves only the selected person", async () => {
   const deps = createTestDependencies();
   const model = discussionModel();

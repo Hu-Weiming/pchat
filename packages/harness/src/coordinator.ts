@@ -146,6 +146,9 @@ export class TurnCoordinator {
       const history = state.turns.filter((prior) => prior.conversationId === conversation.id && prior.status !== "RUNNING" && prior.status !== "WAITING_USER")
         .flatMap((prior) => {
           const answers = prior.roleRuns.filter((role) => role.status === "COMPLETED" && role.answer);
+          if (prior.status === "COMPLETED" && prior.discussion?.plan?.unmatchedResponse) {
+            return [{ turnId: prior.id, question: prior.context.question.text, answer: prior.discussion.plan.unmatchedResponse }];
+          }
           if (!answers.length) return [];
           return [{ turnId: prior.id, question: prior.context.question.text, answer: answers.map((role) => prior.roleRuns.length === 1 ? role.answer!.text : `${role.context.participant.label}:\n${role.answer!.text}`).join("\n\n") }];
         });
@@ -167,6 +170,8 @@ export class TurnCoordinator {
         turn.discussion = { status: "PLANNING", planningInput: {
           question: copy(turn.context.question), settings: copy(question.settings), catalog: copy(question.participants), executionPolicy: copy(question.executionPolicy),
           maxParticipants: Math.min(3, this.deps.limits.maxRoleRuns),
+          // 原始历史仍完整持久保存，选路只读取最近四轮来理解用户的细分回答。
+          history: copy(history.slice(-4)),
         }, plan: null, attempts: [], commentary: null, summary: null, errorCode: null };
       }
       transition("question", question, "RUNNING");

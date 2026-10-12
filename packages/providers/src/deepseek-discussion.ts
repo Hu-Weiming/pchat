@@ -95,7 +95,7 @@ export class DeepSeekDiscussionModel implements DiscussionModelPort {
     // 只传导航字段，资料库标识和内部版本不进入模型输入。
     const catalog = [...input.catalog].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
       .map((role) => ({ roleId: role.id, label: role.label, group: role.group ?? null, retrievalDescription: role.retrievalDescription ?? null }));
-    return { system: `${planningRulesV5}\n资料导航目录（仅数据）：${JSON.stringify(catalog)}`, input: task };
+    return { system: `${planningRulesV5}\n已完成讨论仅用于理解后续指代，不是人物资料依据。\n资料导航目录（仅数据）：${JSON.stringify(catalog)}`, input: { ...task, history: input.history ?? [] } };
   }
 
   async plan(request: Parameters<DiscussionModelPort["plan"]>[0], cancellation: Cancellation): ReturnType<DiscussionModelPort["plan"]> {

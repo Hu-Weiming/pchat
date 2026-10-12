@@ -42,7 +42,7 @@ test("v5 routes from descriptions in a stable cache prefix while keeping the use
   expect(messages[0]!.content).toContain('"retrievalDescription":null');
   expect(messages[0]!.content.indexOf('"roleId":"aaa"')).toBeLessThan(messages[0]!.content.indexOf(`"roleId":"${testRole.id}"`));
   expect(messages[0]!.content).not.toContain(input.question.text);
-  expect(JSON.parse(messages[1]!.content)).toEqual({ question: input.question.text, knowledgeMode: "PRIMARY", explicitRoleIds: [testRole.id], maxParticipants: 3 });
+  expect(JSON.parse(messages[1]!.content)).toEqual({ question: input.question.text, knowledgeMode: "PRIMARY", explicitRoleIds: [testRole.id], maxParticipants: 3, history: [] });
   const system = messages[0]!.content;
   expect(system).toContain("资料说明是导航线索");
   expect(system).toContain("不能当作回答证据");
