@@ -2,8 +2,8 @@ import { expect, test } from "vitest";
 import { DeepSeekDiscussionModel, DEEPSEEK_DISCUSSION_PROMPT_VERSION } from "./deepseek-discussion";
 import { createTestDependencies, testEvidence, testRole, testSettings } from "../../testing/src/index";
 import type { SecureNetworkRequest } from "./network";
-import type { Cancellation, DiscussionModelPort } from "@pchat/harness";
-import type { PlanningInput } from "@pchat/contracts";
+import type { Cancellation } from "@pchat/harness";
+import type { Evidence, ModelExecutionPolicy, PlanningInput, ThoughtStagePackage } from "@pchat/contracts";
 
 const cancellation: Cancellation = { cancelled: false, subscribe: () => () => {} };
 const matchedPlan = { philosophicalQuestion: "自由的条件是什么？", userClaims: [], targets: [{ roleId: testRole.id, searchQuery: "自由的条件" }] };
@@ -16,7 +16,7 @@ function planningInput(overrides: Partial<PlanningInput> = {}): PlanningInput {
   };
 }
 
-function planningModel(value: unknown, calls: SecureNetworkRequest[]): DiscussionModelPort {
+function planningModel(value: unknown, calls: SecureNetworkRequest[]): DeepSeekDiscussionModel {
   return new DeepSeekDiscussionModel({
     configurations: { resolve: () => ({ binding: testSettings.model, maxOutputTokens: 4096 }) },
     network: { request: async (call) => {
@@ -27,6 +27,89 @@ function planningModel(value: unknown, calls: SecureNetworkRequest[]): Discussio
     } },
   });
 }
+
+function descriptionRequest(overrides: Partial<{ attemptId: string; role: ThoughtStagePackage; evidence: Evidence[]; policy: ModelExecutionPolicy }> = {}) {
+  return { attemptId: "describe", role: testRole, evidence: [testEvidence], policy: planningInput().executionPolicy, ...overrides };
+}
+
+test("creates a bounded sample navigation description with one secure model call and no internal identifiers", async () => {
+  const calls: SecureNetworkRequest[] = [];
+  const description = "可检索自由与责任相关问题，例如选择受到什么限制、如何理解行动责任。";
+  const model = planningModel({ description: `  ${description}\n` }, calls);
+  expect(await model.describe(descriptionRequest(), cancellation)).toEqual({ ok: true, description });
+  expect(calls).toHaveLength(1);
+  expect(calls[0]!.body.max_tokens).toBeLessThanOrEqual(512);
+  expect(calls[0]!.operation).toBe("deepseek.chat");
+  const messages = calls[0]!.body.messages as { role: string; content: string }[];
+  expect(JSON.parse(messages[1]!.content)).toEqual({ roleLabel: testRole.label, evidence: [{ workTitle: testEvidence.workTitle, text: testEvidence.text, locator: testEvidence.locator }] });
+  const system = messages[0]!.content;
+  for (const instruction of ["不可信数据", "仅根据样本", "100至200字", "不凭作者常识", "不作心理判断", "不代表全库覆盖", "不能当回答依据", "不执行工具"]) expect(system).toContain(instruction);
+  const sent = JSON.stringify(messages);
+  for (const identifier of [testRole.id, testRole.corpusId, testRole.corpusRevision, testRole.revision, testEvidence.id, testEvidence.contentHash, testEvidence.sourceId]) expect(sent).not.toContain(identifier);
+});
+
+test.each([
+  { name: "empty", evidence: [] },
+  { name: "wrong corpus", evidence: [{ ...testEvidence, corpusId: "other-corpus" }] },
+  { name: "wrong revision", evidence: [{ ...testEvidence, corpusRevision: "other-revision" }] },
+  { name: "research", evidence: [{ ...testEvidence, kind: "RESEARCH" as const }] },
+  { name: "more than eight samples", evidence: Array.from({ length: 9 }, () => testEvidence) },
+  { name: "long individual sample", evidence: [{ ...testEvidence, text: "原".repeat(2401) }] },
+  { name: "large total sample text", evidence: Array.from({ length: 6 }, () => ({ ...testEvidence, text: "原".repeat(2100) })) },
+])("description generation rejects $name before network", async ({ evidence }) => {
+  const calls: SecureNetworkRequest[] = [];
+  const model = planningModel({ description: "不应生成" }, calls);
+  expect(await model.describe(descriptionRequest({ evidence }), cancellation)).toEqual({ ok: false, code: "REJECTED" });
+  expect(calls).toHaveLength(0);
+});
+
+test("description generation validates role and policy and checks the actual rendered input budget before network", async () => {
+  const calls: SecureNetworkRequest[] = [];
+  const model = planningModel({ description: "不应生成" }, calls);
+  const policy = planningInput().executionPolicy;
+  expect(await model.describe(descriptionRequest({ role: { ...testRole, corpusId: "" } }), cancellation)).toEqual({ ok: false, code: "REJECTED" });
+  expect(await model.describe(descriptionRequest({ policy: { ...policy, outputReserveTokens: policy.windowTokens } }), cancellation)).toEqual({ ok: false, code: "REJECTED" });
+  expect(await model.describe(descriptionRequest({ evidence: [{ ...testEvidence, text: "原".repeat(2400) }], policy: { ...policy, windowTokens: 8000, outputReserveTokens: 512 } }), cancellation)).toEqual({ ok: false, code: "REJECTED" });
+  expect(calls).toHaveLength(0);
+});
+
+test.each([
+  { name: "null", output: null },
+  { name: "empty description", output: { description: " " } },
+  { name: "long description", output: { description: "字".repeat(751) } },
+  { name: "non-string description", output: { description: 17 } },
+  { name: "extra output fields", output: { description: "导航", answer: "额外内容" } },
+])("description generation rejects $name without another model request", async ({ output }) => {
+  const calls: SecureNetworkRequest[] = [];
+  const model = planningModel(output, calls);
+  expect(await model.describe(descriptionRequest(), cancellation)).toEqual({ ok: false, code: "REJECTED" });
+  expect(calls).toHaveLength(1);
+});
+
+test("description generation keeps an uncertain network outcome without retrying", async () => {
+  const calls: SecureNetworkRequest[] = [];
+  const model = new DeepSeekDiscussionModel({ configurations: { resolve: () => ({ binding: testSettings.model, maxOutputTokens: 4096 }) }, network: { request: async (call) => { calls.push(call); return { ok: false, code: "OUTCOME_UNKNOWN" }; } } });
+  expect(await model.describe(descriptionRequest(), cancellation)).toEqual({ ok: false, code: "OUTCOME_UNKNOWN" });
+  expect(calls).toHaveLength(1);
+});
+
+test("description generation fences cancellation before delivery and after sending without retrying", async () => {
+  const calls: SecureNetworkRequest[] = [];
+  const before = planningModel({ description: "迟到结果" }, calls);
+  expect(await before.describe(descriptionRequest(), { cancelled: true, subscribe: () => () => {} })).toEqual({ ok: false, code: "REJECTED" });
+  expect(calls).toHaveLength(0);
+  const listeners = new Set<() => void>();
+  const token = { cancelled: false, subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; } };
+  const after = new DeepSeekDiscussionModel({ configurations: { resolve: () => ({ binding: testSettings.model, maxOutputTokens: 4096 }) }, network: { request: async (call) => {
+    calls.push(call);
+    token.cancelled = true;
+    for (const listener of listeners) listener();
+    return { ok: false, code: "OUTCOME_UNKNOWN" };
+  } } });
+  expect(await after.describe(descriptionRequest(), token)).toEqual({ ok: false, code: "OUTCOME_UNKNOWN" });
+  expect(calls).toHaveLength(1);
+  expect(listeners.size).toBe(0);
+});
 
 test("v5 routes from descriptions in a stable cache prefix while keeping the user's original question", async () => {
   const calls: SecureNetworkRequest[] = [];

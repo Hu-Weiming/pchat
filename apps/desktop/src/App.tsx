@@ -19,5 +19,5 @@ export function App() {
   }, []);
   useEffect(refresh, [refresh, revision]);
   return <><Workspace client={client} modelOptions={options.models} ragOptions={options.retrieval} onConfigureConnections={() => setSettingsOpen(true)} />
-    {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} onSaved={() => setRevision((value) => value + 1)} />}</>;
+    {settingsOpen && <SettingsDialog client={client} onClose={() => setSettingsOpen(false)} onSaved={() => setRevision((value) => value + 1)} />}</>;
 }
