@@ -30,7 +30,7 @@ export async function createHarness(dependencies: HarnessDependencies): Promise<
   const selectParticipants = (participantIds: readonly string[]): ThoughtStagePackage[] | null => {
     if (participantIds.length === 0) {
       const catalog = roles.filter((item) => item.status === "CONFIRMED");
-      return dependencies.discussionModel && catalog.length > 0 && catalog.length <= 30 ? catalog : null;
+      return dependencies.discussionModel && catalog.length > 0 && catalog.length <= 100 ? catalog : null;
     }
     const selected: ThoughtStagePackage[] = [];
     for (const id of participantIds) {

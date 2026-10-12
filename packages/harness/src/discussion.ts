@@ -64,6 +64,10 @@ export class DiscussionExecutor {
       if (!model) throw new Failure("CONTEXT_UNAVAILABLE");
       let turn = await this.current(id, token);
       if (!turn.discussion.plan) {
+        const planningCount = model.countPlanningInput?.(copy(turn.discussion.planningInput));
+        const planningPolicy = turn.discussion.planningInput.executionPolicy;
+        if (planningCount !== undefined && (!Number.isSafeInteger(planningCount) || planningCount < 0
+          || planningCount > planningPolicy.windowTokens - Math.min(1024, planningPolicy.outputReserveTokens))) throw new Failure("CONTEXT_BUDGET_EXCEEDED");
         const { attemptId, result } = await this.call(id, token, "PLAN", null, turn.discussion.planningInput,
           (attemptId) => model.plan({ attemptId, input: copy(turn.discussion.planningInput) }, token));
         if (!result.ok) throw new Failure(result.code);
@@ -74,9 +78,23 @@ export class DiscussionExecutor {
         const explicit = turn.discussion.planningInput.settings.participantIds;
         const catalog = turn.discussion.planningInput.catalog;
         if (ids.length > (turn.discussion.planningInput.maxParticipants ?? 3) || new Set(ids).size !== ids.length || ids.some((roleId) => !catalog.some((role) => role.id === roleId && role.status === "CONFIRMED"))
-          || (explicit.length > 0 && (explicit.length !== ids.length || explicit.some((roleId) => !ids.includes(roleId))))
+          || (ids.length > 0 && explicit.length > 0 && (explicit.length !== ids.length || explicit.some((roleId) => !ids.includes(roleId))))
           || plan.userClaims.some((claim) => !turn.context.question.text.includes(claim))) throw new Failure("INVALID_ROUTE");
         if (explicit.length) plan.targets.sort((a, b) => explicit.indexOf(a.roleId) - explicit.indexOf(b.roleId));
+        // 无匹配是有效的选路结果：首轮已给出说明，不再触发检索或二次生成。
+        if (ids.length === 0) {
+          await this.change(id, token, (stored, state) => {
+            transition("attempt", stored.discussion.attempts.find((a) => a.id === attemptId)!, "SUCCEEDED");
+            stored.discussion.plan = plan;
+            stored.discussion.status = "COMPLETED";
+            transition("turn", stored, "COMPLETED");
+            const conversation = state.conversations.find((c) => c.id === stored.conversationId)!;
+            transition("question", conversation.questions.find((q) => q.id === stored.questionId)!, "COMPLETED");
+            conversation.activeTurnId = null;
+            emit(state, this.deps.clock, { type: "TurnCompleted", conversationId: stored.conversationId, questionId: stored.questionId, turnId: stored.id });
+          });
+          return;
+        }
         if (!await this.change(id, token, (stored, state) => {
           transition("attempt", stored.discussion.attempts.find((a) => a.id === attemptId)!, "SUCCEEDED");
           stored.discussion.plan = plan; stored.discussion.status = "RETRIEVING";

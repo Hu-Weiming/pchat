@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { HarnessCommandSchema, HarnessEventSchema, HarnessQuerySchema, ConversationProjectionSchema, CommandReceiptSchema } from "./index";
+import { HarnessCommandSchema, HarnessEventSchema, HarnessQuerySchema, ConversationProjectionSchema, CommandReceiptSchema, DiscussionPlanSchema, ThoughtStagePackageSchema } from "./index";
 
 describe("Harness command trust boundary", () => {
+  it("accepts a bounded routing description and requires an explanation for empty targets", () => {
+    const role = { id: "role", revision: "v1", label: "人物阶段", status: "CONFIRMED", corpusId: "corpus", corpusRevision: "v1", retrievalConfigRevision: "v1", promptPolicyRevision: "v1" };
+    expect(ThoughtStagePackageSchema.parse(role)).toEqual(role);
+    expect(ThoughtStagePackageSchema.parse({ ...role, retrievalDescription: "  无聊与消遣的原文讨论  " }).retrievalDescription).toBe("无聊与消遣的原文讨论");
+    for (const retrievalDescription of [" ", "字".repeat(801)]) expect(ThoughtStagePackageSchema.safeParse({ ...role, retrievalDescription }).success).toBe(false);
+    const plan = { philosophicalQuestion: "不玩手机时感到无聊", userClaims: [], targets: [] };
+    expect(DiscussionPlanSchema.safeParse(plan).success).toBe(false);
+    expect(DiscussionPlanSchema.safeParse({ ...plan, unmatchedResponse: " " }).success).toBe(false);
+    expect(DiscussionPlanSchema.parse({ ...plan, unmatchedResponse: "本次没有找到合适的资料方向，可以继续细分问题。" }).targets).toEqual([]);
+    expect(DiscussionPlanSchema.safeParse({ ...plan, targets: [{ roleId: "role", searchQuery: "无聊" }], unmatchedResponse: "没有匹配" }).success).toBe(false);
+  });
   it("accepts a JSON conversation command without platform or credential data", () => {
     const command = {
       type: "CreateConversation",

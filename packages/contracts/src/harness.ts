@@ -75,6 +75,8 @@ export const ThoughtStagePackageSchema = z.strictObject({
   id: Id, revision: Id, label: z.string().min(1), status: z.enum(["CONFIRMED", "DRAFT"]),
   corpusId: Id, corpusRevision: Id, retrievalConfigRevision: Id, promptPolicyRevision: Id,
   group: Id.optional(),
+  // 资料说明只用于选路；旧资料包没有此字段时仍可读取。
+  retrievalDescription: z.string().trim().min(1).max(800).optional(),
 });
 export const EvidenceSchema = z.strictObject({
   id: Id, corpusId: Id, corpusRevision: Id, sourceId: Id, sourceRevision: Id,
@@ -136,12 +138,15 @@ export const ComparisonProjectionSchema = z.strictObject({
 export const DiscussionPlanSchema = z.strictObject({
   philosophicalQuestion: z.string().trim().min(1).max(4000),
   userClaims: z.array(z.string().trim().min(1).max(2000)).max(8),
-  targets: z.array(z.strictObject({ roleId: Id, searchQuery: z.string().trim().min(1).max(2000) })).min(1).max(3),
-});
+  targets: z.array(z.strictObject({ roleId: Id, searchQuery: z.string().trim().min(1).max(2000) })).max(3),
+  unmatchedResponse: z.string().trim().min(1).max(1000).optional(),
+}).refine((plan) => plan.targets.length === 0 ? !!plan.unmatchedResponse : plan.unmatchedResponse === undefined);
 export const PlanningInputSchema = z.strictObject({
   question: ContextSnapshotSchema.shape.question, settings: ConversationSettingsSchema,
   maxParticipants: z.number().int().min(1).max(3).optional(),
-  catalog: z.array(ThoughtStagePackageSchema).min(1).max(30), executionPolicy: ModelExecutionPolicySchema,
+  // 仅保留有限的已完成讨论，帮助解释“前者”等后续指代；不是资料依据。
+  history: ContextSnapshotSchema.shape.history.max(4).optional(),
+  catalog: z.array(ThoughtStagePackageSchema).min(1).max(100), executionPolicy: ModelExecutionPolicySchema,
 });
 export const DiscussionInputSchema = z.strictObject({
   question: ContextSnapshotSchema.shape.question, settings: ConversationSettingsSchema,
