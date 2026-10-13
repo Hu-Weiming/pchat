@@ -97,7 +97,7 @@ export function RoleDescriptions({ client, disabled, onBusyChange, onSaved }: {
   return <section className={styles.newForm} aria-labelledby="role-descriptions-title" aria-busy={loading || busyAction !== null}>
     <h3 id="role-descriptions-title">人物资料说明</h3>
     <p className={styles.muted}>让 DeepSeek 根据检索到的原文抽样生成选路说明，并直接启用。说明只帮助匹配讨论方向，不代表完整资料覆盖，也不作为回答依据。每次生成最多调用一次检索和一次模型，请按需要点击。</p>
-    <p className={styles.muted}>说明准备有独立的累计调用额度上限 20，按内部调用单位累计，不是人民币金额；禁用外部调用时不会生成。手工修改并保存不调用模型或知识库。</p>
+    <p className={styles.muted}>说明准备有独立的累计调用额度上限 100，并受配置中的调用上限约束。额度按内部调用单位累计，不是人民币金额；禁用外部调用时不会生成。手工修改并保存不调用模型或知识库。</p>
     <button type="button" className={styles.secondaryButton} disabled={blocked || loading} onClick={() => setQueryRevision((value) => value + 1)}>刷新资料说明</button>
     {loading && <p className={styles.muted} role="status">正在读取人物资料说明…</p>}
     {loadMessage && <p className={styles.muted} role="status">{loadMessage}</p>}

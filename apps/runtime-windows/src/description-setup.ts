@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { EvidenceSchema, ModelBindingSchema, ThoughtStagePackageSchema } from "@pchat/contracts";
@@ -47,17 +47,28 @@ export async function generateRoleDescription(stateDirectory: string, network: S
   mkdirSync(directory, { recursive: true });
   // 资料准备采用独立累计额度；未知结果也保留费用，不能靠重试绕过上限。
   const reservedCostUnits = ports.attemptCostUnits.RAG + ports.attemptCostUnits.MODEL;
+  let previousJobId: string | null = null;
+  let previousTime = -Infinity;
   const previousCost = readdirSync(directory).filter((name) => /^[a-f0-9-]{36}\.json$/i.test(name)).reduce((total, name) => {
-    const previous = JSON.parse(readFileSync(join(directory, name), "utf8"));
+    const previousPath = join(directory, name);
+    const previous = JSON.parse(readFileSync(previousPath, "utf8"));
     const cost = z.number().finite().min(0).parse(previous.reservedCostUnits ?? reservedCostUnits);
+    const modified = statSync(previousPath).mtimeMs;
+    // 旧记录也以文件名关联；用户主动重生成不能丢失上一次未知费用的审计线索。
+    if (previous.roleId === role.id && modified >= previousTime) {
+      previousJobId = name.slice(0, -5); previousTime = modified;
+    }
     return total + cost;
   }, 0);
-  if (previousCost + reservedCostUnits > Math.min(20, config.maxCostUnits)) throw new Error("Description preparation budget exceeded");
-  const path = join(directory, `${randomUUID()}.json`);
-  const job = { roleId: role.id, roleRevision: role.revision, corpusRevision: role.corpusRevision, reservedCostUnits, status: "IN_FLIGHT", stage: "RAG", evidence: [] as z.infer<typeof EvidenceSchema>[], description: "" };
+  if (previousCost + reservedCostUnits > Math.min(100, config.maxCostUnits)) throw new Error("Description preparation budget exceeded");
+  const id = randomUUID();
+  const path = join(directory, `${id}.json`);
+  const job = { id, previousJobId, ragAttemptId: randomUUID(), modelAttemptId: null as string | null,
+    roleId: role.id, roleRevision: role.revision, corpusRevision: role.corpusRevision, reservedCostUnits,
+    status: "IN_FLIGHT", stage: "RAG", evidence: [] as z.infer<typeof EvidenceSchema>[], description: "" };
   save(path, job);
   try {
-    const result = await ports.rag.retrieve({ attemptId: randomUUID(), roleRunId: role.id, connectionId: retrieval.binding.connectionId,
+    const result = await ports.rag.retrieve({ attemptId: job.ragAttemptId, roleRunId: role.id, connectionId: retrieval.binding.connectionId,
       corpusId: role.corpusId, corpusRevision: role.corpusRevision, retrievalConfigRevision: role.retrievalConfigRevision,
       query: `${role.label}：请检索涉及不同哲学问题的原文片段，包含主要概念和适用情境。`,
     }, cancellation);
@@ -72,10 +83,12 @@ export async function generateRoleDescription(stateDirectory: string, network: S
     }).slice(0, 8);
     if (!job.evidence.length || cancellation.cancelled) throw new Error("No usable description sources");
     job.stage = "DESCRIPTION";
+    // 在外发前保存模型尝试 ID；未到此阶段的任务不伪装成已经调用模型。
+    job.modelAttemptId = randomUUID();
     save(path, job);
     const model = new DeepSeekDiscussionModel({ network, configurations: { resolve: (binding) => config.models.find((item) =>
       item.binding.connectionId === binding.connectionId && item.binding.modelId === binding.modelId && item.binding.configRevision === binding.configRevision) } });
-    const generated = await model.describe({ attemptId: randomUUID(), role, evidence: job.evidence, policy }, cancellation);
+    const generated = await model.describe({ attemptId: job.modelAttemptId, role, evidence: job.evidence, policy }, cancellation);
     if (!generated.ok) { job.status = generated.code; throw new Error("Description generation unavailable"); }
     if (cancellation.cancelled) throw new Error("Cancelled description generation");
     // 网络等待期间重新读取配置，防止说明覆盖其他设置或绑定到已更新的资料。

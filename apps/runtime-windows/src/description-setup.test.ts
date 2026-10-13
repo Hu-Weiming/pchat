@@ -6,10 +6,12 @@ import { testRole, testSettings } from "../../../packages/testing/src/index";
 import { createKnowledgeSetup } from "./knowledge-setup";
 import { configuredPorts } from "./configuration";
 
-function fixture(options: { empty?: boolean; unknown?: boolean; onModel?: (path: string) => void } = {}) {
+function fixture(options: { empty?: boolean; unknown?: boolean; roleCount?: number; onModel?: (path: string) => void } = {}) {
   const parent = join(process.env.PCHAT_DEV_ROOT!, "temp", "pchat");
   const directory = mkdtempSync(join(parent, "description-setup-"));
-  const config = { version: 1, maxCostUnits: 100, retrieval: [], roles: [{ ...testRole, retrievalDescription: "原说明" }],
+  const config = { version: 1, maxCostUnits: 100, retrieval: [], roles: Array.from({ length: options.roleCount ?? 1 }, (_, index) => ({
+    ...testRole, id: index === 0 ? testRole.id : `${testRole.id}-${index + 1}`, retrievalDescription: "原说明",
+  })),
     connections: [{ id: testSettings.model.connectionId, provider: "deepseek", revision: testSettings.model.configRevision }, { id: "qianfan-personal", provider: "qianfan", revision: "v1" }],
     models: [{ binding: testSettings.model, windowTokens: 65536, maxOutputTokens: 4096 }],
     workflowRetrieval: [{ binding: { connectionId: "qianfan-personal", corpusId: testRole.corpusId, corpusRevision: testRole.corpusRevision, retrievalConfigRevision: testRole.retrievalConfigRevision }, appId: "app", group: "group", person: "人物", datasetId: "dataset", maxEvidenceChars: 7000, maxPassages: 6 }],
@@ -101,6 +103,43 @@ test("rejects zero or exhausted preparation allowance before sending any paid re
     const role = configuredPorts(f.directory, f.network).roles[0]!;
     expect(await f.setup.handle({ ...f.request, params: { ...f.request.params, expectedRevision: role.revision } })).toMatchObject({ ok: false });
     expect(f.calls).toHaveLength(3);
+  } finally { f.close(); }
+});
+
+test("the default preparation allowance can enable descriptions for all thirteen initial roles", async () => {
+  const f = fixture({ roleCount: 13 });
+  try {
+    // 首版十三个人物必须都能各准备一次，不能生成到第七人就被内部额度阻断。
+    for (const role of f.config.roles) {
+      expect(await f.setup.handle({ ...f.request, params: { ...f.request.params, roleId: role.id } })).toMatchObject({
+        ok: true, result: { confirmed: true, role: { id: role.id, retrievalDescription: expect.stringContaining("不代表全库覆盖") } },
+      });
+    }
+    expect(configuredPorts(f.directory, f.network).roles.filter((role) => role.retrievalDescription?.includes("无聊与消遣"))).toHaveLength(13);
+    expect(f.calls).toHaveLength(39);
+  } finally { f.close(); }
+});
+
+test("records new provider attempts and links an explicit retry to the prior unknown preparation", async () => {
+  const options = { unknown: true };
+  const f = fixture(options);
+  try {
+    expect(await f.setup.handle(f.request)).toMatchObject({ ok: false });
+    const jobDirectory = join(f.directory, "description-jobs");
+    const firstFile = readdirSync(jobDirectory)[0]!;
+    const first = JSON.parse(readFileSync(join(jobDirectory, firstFile), "utf8"));
+    expect(first).toMatchObject({ id: firstFile.slice(0, -5), status: "OUTCOME_UNKNOWN",
+      ragAttemptId: f.calls[0]!.attemptId, modelAttemptId: f.calls[2]!.attemptId, previousJobId: null });
+    options.unknown = false;
+    // 只有用户再次请求才建立新任务，并保留与未知尝试的关联。
+    expect(await f.setup.handle(f.request)).toMatchObject({ ok: true });
+    const nextFile = readdirSync(jobDirectory).find((name) => name !== firstFile)!;
+    const next = JSON.parse(readFileSync(join(jobDirectory, nextFile), "utf8"));
+    expect(next).toMatchObject({ id: nextFile.slice(0, -5), status: "SUCCEEDED", previousJobId: first.id,
+      ragAttemptId: f.calls[3]!.attemptId, modelAttemptId: f.calls[5]!.attemptId });
+    expect(next.ragAttemptId).not.toBe(first.ragAttemptId);
+    expect(next.modelAttemptId).not.toBe(first.modelAttemptId);
+    expect(f.calls).toHaveLength(6);
   } finally { f.close(); }
 });
 

@@ -29,7 +29,7 @@ export function SettingsDialog({ client, onClose, onSaved }: { client: PchatClie
   return <dialog ref={dialog} className={styles.evidenceDialog} onCancel={(event) => { event.preventDefault(); if (!blocked) onClose(); }} aria-labelledby="settings-title">
     <header className={styles.drawerHeader}><div><span className={styles.eyebrow}>准备工作</span><h2 id="settings-title">连接与资料设置</h2></div><button className={styles.iconButton} disabled={blocked} onClick={onClose} aria-label="关闭设置">×</button></header>
     <p className={styles.drawerIntro}>密钥在本机安全保存。人物资料由你在百度千帆上传和管理，Pchat 读取已确认的资料范围。</p>
-    <p className={styles.muted}>当前安装使用累计调用额度上限 100；每轮为模型和检索预留额度。这不是人民币账单上限，请同时在供应商控制台设置消费限额。</p>
+    <p className={styles.muted}>讨论的累计调用额度上限为 100，每轮为模型和检索预留额度；资料说明准备的累计额度另计。这不是人民币账单上限，请同时在供应商控制台设置消费限额。</p>
     <form className={styles.newForm} onSubmit={(event) => { void save(event); }}>
       <fieldset disabled={blocked} className={styles.newForm} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <label className={styles.field}>服务<select value={provider} onChange={(event) => setProvider(event.target.value)}><option value="deepseek">DeepSeek · 生成模型</option><option value="qianfan">百度千帆 · 知识库</option></select></label>
