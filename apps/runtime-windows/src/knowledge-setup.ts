@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { QianfanManifestCollector, snapshotQianfanConfiguration, type QianfanManifestDraft, type QianfanConfiguration, type SecureNetworkPort } from "@pchat/providers";
 import { ThoughtStagePackageSchema } from "@pchat/contracts";
+import { generateRoleDescription, saveRoleDescription } from "./description-setup";
 
 const text = z.string().trim().min(1).max(200);
 const metadata = z.strictObject({ documentId: text, kind: z.enum(["PRIMARY", "RESEARCH"]), workTitle: z.string().max(500).nullable(), edition: z.string().max(500).nullable(), translator: z.string().max(500).nullable(),
@@ -13,6 +14,7 @@ const collectSchema = z.strictObject({ knowledgebaseId: text });
 const confirmSchema = z.strictObject({ collectionId: z.uuid(), label: text, documents: z.array(metadata).min(1).max(100) });
 export function createKnowledgeSetup(stateDirectory: string, network: SecureNetworkPort) {
   let cancelled = false;
+  let generatingDescription = false;
   const listeners = new Set<() => void>();
   const cancellation = { get cancelled() { return cancelled; }, subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; } };
   const collector = new QianfanManifestCollector({ network, hasher: { sha256: async (value) => createHash("sha256").update(value, "utf8").digest("hex") } });
@@ -25,6 +27,26 @@ export function createKnowledgeSetup(stateDirectory: string, network: SecureNetw
       const base = { kind: "runtime.response", protocolVersion: 2, requestId: message.requestId };
       try {
         if (cancelled || message.protocolVersion !== 2 || !text.safeParse(message.requestId).success) throw new Error();
+        // 复用已有资料配置通道，不新增宿主权限；一次只准备一个人物的说明。
+        if (message.method === "configuration.confirm" && message.params && typeof message.params === "object"
+          && "action" in message.params && message.params.action === "SAVE_DESCRIPTION") {
+          if (generatingDescription) throw new Error();
+          return { ...base, ok: true, result: saveRoleDescription(stateDirectory, message.params) };
+        }
+        // 已有 collect 通道允许长任务；生成另设两分钟取消期限，避免超时后继续改配置。
+        if (message.method === "configuration.collect" && message.params && typeof message.params === "object"
+          && "action" in message.params && message.params.action === "GENERATE_DESCRIPTION") {
+          if (generatingDescription) throw new Error();
+          generatingDescription = true;
+          let timedOut = false;
+          const generationListeners = new Set<() => void>();
+          const cancelGeneration = () => { timedOut = true; for (const listener of generationListeners) { try { listener(); } catch { /* 一个监听者失败不能阻止其他取消通知。 */ } } };
+          const unsubscribe = cancellation.subscribe(cancelGeneration);
+          const timeout = setTimeout(cancelGeneration, 120000);
+          const token = { get cancelled() { return timedOut || cancelled; }, subscribe(listener: () => void) { if (timedOut || cancelled) listener(); else generationListeners.add(listener); return () => { generationListeners.delete(listener); }; } };
+          try { return { ...base, ok: true, result: await generateRoleDescription(stateDirectory, network, message.params, token) }; }
+          finally { clearTimeout(timeout); unsubscribe(); generationListeners.clear(); generatingDescription = false; }
+        }
         const directory = join(stateDirectory, "knowledge-drafts");
         mkdirSync(directory, { recursive: true });
         if (message.method === "configuration.collect") {
